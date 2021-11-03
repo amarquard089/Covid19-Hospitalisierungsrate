@@ -9,6 +9,8 @@ divi_tagesreport$bundesland_fact <- as.factor(divi_tagesreport$bundesland)
 # Klinische Aspekte Excel
 ## Bitte Tabelle anschauen ##
 
+library(readxl)
+
 Klinische_Aspekte <- read_excel("Klinische_Aspekte.xlsx", 
                                 sheet = "Klinische_Aspekte", skip = 2)
 
