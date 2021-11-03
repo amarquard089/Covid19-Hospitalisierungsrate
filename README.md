@@ -66,7 +66,8 @@ TBD
 
 ## Todo
 
-TBD
+Spalten beschreiben
+daten aufräumen
 
 
 
