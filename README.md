@@ -62,12 +62,24 @@ Statistisches Praktikum. Thema: Covid 19 - Vorhersage der Hospitalisierungsrate
 
 ## Einteilung
 
-TBD
+Alex
+bis 04.11 Spalten beschreiben
+
+Phu, Qian, Johannes, Alex
+- bis 05.11 Fragen klären und aufschreiben
+- Sich mit dem Thema auseinandersetzen
+- 
 
 ## Todo
 
-Spalten beschreiben
-daten aufräumen
+Bis zum 13.12:
+- Deskriptive Datenauswertung
+- Korrelation zwischen Kovariablen
+- Können Variablen ausgeschlossen werden, die kein Korrelation mit der Zielvariable (Hosp.Rate) aufweisen 
+  - Vorbereitungen für Modell
+
+- Spalten beschreiben
+- Daten aufräumen
 
 
 
