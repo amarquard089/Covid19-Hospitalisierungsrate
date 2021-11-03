@@ -9,6 +9,19 @@ Statistisches Praktikum. Thema: Covid 19 - Vorhersage der Hospitalisierungsrate
   - [Doku zur Nutzung](https://rstudio-pubs-static.s3.amazonaws.com/177286_826aed2f00794640b301aeb42533c6f1.html)
 - Und hoffentlich mehr :grimacing:
 
+## Arbeit mit Github
+
+1. Open R Studio
+2. Click on File
+3. Click on New Project...
+4. Click on Version Control
+5. Goto Github and open this Repo
+6. Click on Code (green Button)
+7. Copy HTTPS Url
+8. Paste it into Repository in your RStudio window, that should still show which repository you would like to clone
+9. Click Save (or Next)
+10. Done
+
 ## Ordnerhierarchie
 
 - ### Daten
