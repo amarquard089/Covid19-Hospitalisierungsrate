@@ -47,7 +47,6 @@ jobs:
          to: Feng.Qian@campus.lmu.de
          subject: Covid19-Hospitalisierung Aenderungen auf dem main
          body: Hey Phu, es gab eine Aenderung auf dem main. Schau doch mal rein https://github.com/amarquard089/Covid19-Hospitalisierungsrate
-         contentType: text/html
          
       - name: Send Email to Johannes
         uses: devellany/send-mail@v1.0.2
@@ -60,7 +59,6 @@ jobs:
          to: J.Pfeifer@campus.lmu.de
          subject: Covid19-Hospitalisierung Aenderungen auf dem main
          body: Hey Johannes, es gab eine Aenderung auf dem main. Schau doch mal rein https://github.com/amarquard089/Covid19-Hospitalisierungsrate
-         contentType: text/html
          
       - name: Send Email to Alex
         uses: devellany/send-mail@v1.0.2
@@ -73,4 +71,3 @@ jobs:
          to: A.Marquard@campus.lmu.de
          subject: Covid19-Hospitalisierung Aenderungen auf dem main
          body: Hey Johannes, es gab eine Aenderung auf dem main. Schau doch mal rein https://github.com/amarquard089/Covid19-Hospitalisierungsrate
-         contentType: text/html
