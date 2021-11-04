@@ -9,6 +9,11 @@ Statistisches Praktikum. Thema: Covid 19 - Vorhersage der Hospitalisierungsrate
   - [Doku zur Nutzung](https://rstudio-pubs-static.s3.amazonaws.com/177286_826aed2f00794640b301aeb42533c6f1.html)
 - Und hoffentlich mehr :grimacing:
 
+## Wichtig: Lesen
+
+- [Covid19Trends-RKI](https://www.rki.de/DE/Content/InfAZ/N/Neuartiges_Coronavirus/Situationsberichte/COVID-19-Trends/COVID-19-Trends.html?__blob=publicationFile#/home)
+- [RKI-Github](https://github.com/orgs/robert-koch-institut/repositories)
+
 ## Arbeit mit Github
 
 1. Open R Studio
@@ -80,6 +85,6 @@ Bis zum 13.12:
 
 - Spalten beschreiben
 - Daten aufräumen
-readme
+
 
 
