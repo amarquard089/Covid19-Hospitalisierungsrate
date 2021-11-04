@@ -23,51 +23,15 @@ jobs:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v2
 
-      - name: Send Email to Phu
-        uses: devellany/send-mail@v1.0.2
+      - name: Send Email 
+        uses: dawidd6/action-send-mail@v3
         with:
-         host: smtp.google.com
-         account: ${{secrets.ACCOUNT}}
-         password: ${{secrets.MAIL_PASSWORD}}
-         sender: Alex
-         from: ${{secrets.MAIL_ADDRESS}}
-         to: Nguyen.Phu@campus.lmu.de
-         subject: Covid19-Hospitalisierung Aenderungen auf dem main
-         body: Hey Phu, es gab eine Aenderung auf dem main. Schau doch mal rein https://github.com/amarquard089/Covid19-Hospitalisierungsrate
-         contentType: text/html
-         
-      - name: Send Email to Qian
-        uses: devellany/send-mail@v1.0.2
-        with:
-         host: smtp.google.com
-         account: ${{secrets.ACCOUNT}}
-         password: ${{secrets.MAIL_PASSWORD}}
-         sender: Alex
-         from: ${{secrets.MAIL_ADDRESS}}
-         to: Feng.Qian@campus.lmu.de
-         subject: Covid19-Hospitalisierung Aenderungen auf dem main
-         body: Hey Phu, es gab eine Aenderung auf dem main. Schau doch mal rein https://github.com/amarquard089/Covid19-Hospitalisierungsrate
-         
-      - name: Send Email to Johannes
-        uses: devellany/send-mail@v1.0.2
-        with:
-         host: smtp.google.com
-         account: ${{secrets.ACCOUNT}}
-         password: ${{secrets.MAIL_PASSWORD}}
-         sender: Alex
-         from: ${{secrets.MAIL_ADDRESS}}
-         to: J.Pfeifer@campus.lmu.de
-         subject: Covid19-Hospitalisierung Aenderungen auf dem main
-         body: Hey Johannes, es gab eine Aenderung auf dem main. Schau doch mal rein https://github.com/amarquard089/Covid19-Hospitalisierungsrate
-         
-      - name: Send Email to Alex
-        uses: devellany/send-mail@v1.0.2
-        with:
-         host: smtp.google.com
-         account: ${{secrets.ACCOUNT}}
-         password: ${{secrets.MAIL_PASSWORD}}
-         sender: Alex
-         from: ${{secrets.MAIL_ADDRESS}}
-         to: A.Marquard@campus.lmu.de
-         subject: Covid19-Hospitalisierung Aenderungen auf dem main
-         body: Hey Johannes, es gab eine Aenderung auf dem main. Schau doch mal rein https://github.com/amarquard089/Covid19-Hospitalisierungsrate
+          server_address: smtp.gmail.com
+          server_port: 465
+          username: ${{secrets.MAIL_ADDRESS}}
+          password: ${{secrets.MAIL_PASSWORD}}
+          subject: Covid19-Hospitalisierung Aenderungen auf dem main
+          to: Nguyen.Phu@campus.lmu.de, Feng.Qian@campus.lmu.de, J.Pfeifer@campus.lmu.de, A.Marquard@campus.lmu.de
+          from: Alex # <user@example.com>
+          secure: true
+          body: Hey, es gab eine Aenderung auf dem main. Schau doch mal rein https://github.com/amarquard089/Covid19-Hospitalisierungsrate
