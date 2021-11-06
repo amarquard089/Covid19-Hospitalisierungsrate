@@ -143,6 +143,9 @@ divi_tagesreport <- divi_tagesreport %>%
 
 ### ergänzte Spalten
 
+## bundesland_char:
+# Bundesländer namentlich
+
 ## bundesland_fact:
 # Bundesland_char als faktor
 
@@ -161,11 +164,15 @@ divi_tagesreport <- divi_tagesreport %>%
 # delta belegte bette und belegte betten nur erwachsen. Entspricht anzahl
 # kinder auf intensivstation
 
-
+saveRDS(divi_tagesreport, file = './daten/divi_tagesreport')
 
 #
 ##### RKI #####
 #
+
+# Download excel data
+download.file(url = 'https://www.rki.de/DE/Content/InfAZ/N/Neuartiges_Coronavirus/Daten/Klinische_Aspekte.xlsx?__blob=publicationFile',
+              destfile = './Klinische_Aspekte.xlsx', mode = 'wb')
 
 
 ### Klinische Aspekte Excel 
@@ -193,15 +200,48 @@ Faelle_Hospitalisierung_Alter <- read_excel("Klinische_Aspekte.xlsx",
 
 Alter_Median_Mittelwert <- read_excel("Klinische_Aspekte.xlsx", 
                                       sheet = "Alter_Median_Mittelwert", 
-                                      col_types = c("date", "text", "numeric", 
-                                                    "numeric", "numeric", 
-                                                    "numeric", "skip", "skip", 
-                                                    "skip", "date", "text", 
-                                                    "numeric", "numeric", 
-                                                    "numeric", "numeric", 
-                                                    "numeric"), 
                                       skip = 3)
 
 Sieben_Tage_Inzidenz_Hosp_Alter <- read_excel("Klinische_Aspekte.xlsx", 
                                           sheet = "7-Tage-Inzidenz_Hosp_Alter", 
                                           skip = 3)
+
+### Cleanup RKI data ###
+
+Alter_Median <- Alter_Median_Mittelwert[, seq(6)]
+names(Alter_Median) <- c("Meldejahr", "Meldewoche", names(Alter_Median)[seq(from = 3, to = 6, by = 1)])
+Alter_Median
+
+Alter_Mittelwert <- Alter_Median_Mittelwert[, seq(from = 10, to = 16, by = 1)]
+names(Alter_Mittelwert) <- c("Meldejahr", "Meldewoche", names(Alter_Mittelwert)[seq(from = 3, to = 7, by = 1)])
+Alter_Mittelwert
+
+Alter_Median_Mittelwert_clean <- Alter_Median_Mittelwert[, c(seq(6), 12, 13, 14, 15, 16)]
+names(Alter_Median_Mittelwert_clean) <- c("Meldejahr", "Meldewoche", names(Alter_Median_Mittelwert_clean)[c(-1,-2)])
+Alter_Median_Mittelwert_clean
+
+
+head(Alter_Median_Mittelwert_clean)
+
+
+
+
+
+### Inzidenz Impfstatus excel
+
+Inzidenz_Impfstatus <- read_excel("Inzidenz_Impfstatus.xlsx", 
+                                  sheet = "Symptomatische_nach_Impfstatus", 
+                                  skip = 1)
+
+Inzidenz_Impfstatus <- read_excel("Inzidenz_Impfstatus.xlsx", 
+                                  sheet = "Hospitalisierte_nach_Impfstatus", 
+                                  skip = 1)
+
+
+
+
+
+
+
+
+
