@@ -91,6 +91,7 @@ Alex
 Jeder stellt Modelle vor für
 - Inzidenz prediction
 - hospitalisierungsprediction
+- Datensatz: wie könnte der aussehen? (Was sind unsere kovariablen?)
 mit Quelle
 
 
