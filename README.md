@@ -65,26 +65,37 @@ Statistisches Praktikum. Thema: Covid 19 - Vorhersage der Hospitalisierungsrate
 
   - Order für die Abgabe. Alle relevanten Dateien sollten hier rein
 
-## Einteilung
+## Gewünschte Aufgaben
+
+Johannes
+- Tendenz zum Bericht schreiben
+
+Qian
+- Bericht
+- Datenanalyse
+
+Phu
+- 
 
 Alex
-bis 04.11 Spalten beschreiben
 
-Phu, Qian, Johannes, Alex
-- bis 05.11 Fragen klären und aufschreiben
-- Sich mit dem Thema auseinandersetzen
-- 
+## Einteilung
+
 
 ## Todo
 
-Bis zum 13.12:
-- Deskriptive Datenauswertung
-- Korrelation zwischen Kovariablen
-- Können Variablen ausgeschlossen werden, die kein Korrelation mit der Zielvariable (Hosp.Rate) aufweisen 
-  - Vorbereitungen für Modell
+09.11:
+- Git/Github besprechen
 
-- Spalten beschreiben
-- Daten aufräumen
+16.11:
+Jeder stellt Modelle vor für
+- Inzidenz prediction
+- hospitalisierungsprediction
+mit Quelle
+
+
+
+
 
 
 
