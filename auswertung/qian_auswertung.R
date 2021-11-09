@@ -66,4 +66,4 @@ divi_tagesreport %>%
   facet_wrap(~ bundesland_fact) +
   labs(x = "date", 
        y = "faelle_covid_aktuell") +
-  ggtitle("date und faelle_covid_aktuell")
+  ggtitle("date und faelle_covid_aktuell") # title
