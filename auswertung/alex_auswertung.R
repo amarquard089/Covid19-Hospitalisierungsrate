@@ -8,3 +8,4 @@ head(divi_tagesreport)
 str(divi_tagesreport)
 summary(divi_tagesreport)
 
+c <- "hello test"
