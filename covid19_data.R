@@ -239,9 +239,16 @@ Inzidenz_Impfstatus <- read_excel("Inzidenz_Impfstatus.xlsx",
 
 
 
+nowcast_rki <-read.csv('https://raw.githubusercontent.com/robert-koch-institut/SARS-CoV-2-Nowcasting_und_-R-Schaetzung/main/Archiv/Nowcast_R_2021-11-07.csv', header = T)
 
+download.file('https://www.rki.de/DE/Content/InfAZ/N/Neuartiges_Coronavirus/Daten/Fallzahlen_Inzidenz_aktualisiert.xlsx?__blob=publicationFile', 
+              destfile = './Fallzahlen.xlsx', mode = 'wb')
 
+download.file('https://www.rki.de/DE/Content/InfAZ/N/Neuartiges_Coronavirus/Daten/Testzahlen-gesamt.xlsx?__blob=publicationFile', 
+              destfile = './Testzahlen.xlsx', mode = 'wb')
 
+download.file('https://raw.githubusercontent.com/robert-koch-institut/SARS-CoV-2-Nowcasting_und_-R-Schaetzung/main/Archiv/Nowcast_R_2021-11-07.csv',
+              destfile = './Nowcasting.csv', mode = 'wb')
 
 
 
