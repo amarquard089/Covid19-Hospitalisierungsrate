@@ -129,12 +129,13 @@ divi_bundeslaender = data.frame('bundesland' = seq(16),
                                                       "Sachen-Anhalt",
                                                       "Thüringen")
                                 )
-divi_tagesreport <- dplyr::left_join(divi_tagesreport, divi_bundeslaender, by = 'bundesland')
+library(dplyr)
+divi_tagesreport <- left_join(divi_tagesreport, divi_bundeslaender, by = 'bundesland')
 
 divi_tagesreport$bundesland_fact <- as.factor(divi_tagesreport$bundesland_char)
 divi_tagesreport$gemeindeschluessel <- as.factor(divi_tagesreport$gemeindeschluessel)
 
-library(dplyr)
+
 
 divi_tagesreport <- divi_tagesreport %>% 
   mutate(delta_meldebreich_standort = anzahl_meldebereiche - anzahl_standorte) %>%
@@ -183,30 +184,21 @@ library(readxl)
 Klinische_Aspekte <- read_excel("Klinische_Aspekte.xlsx", 
                                 sheet = "Klinische_Aspekte", skip = 2)
 
-### Spalten
-
-## Meldejahr
-# klar
-
-## MW
-# Meldewoche im Format KW (Kalenderwoche)
-
-## Fälle gesamt
+saveRDS(Klinische_Aspekte, file = './daten/klinische_aspekte')
 
 
 Faelle_Hospitalisierung_Alter <- read_excel("Klinische_Aspekte.xlsx", 
                                             sheet = "Fälle_Hospitalisierung_Alter", 
                                             skip = 4)
+Faelle_Hospitalisierung_Alter <- 
+  Faelle_Hospitalisierung_Alter[, -dim(Faelle_Hospitalisierung_Alter)[[2]]]
+
+saveRDS(Faelle_Hospitalisierung_Alter, file = './daten/Faelle_Hosp_Alter')
+
 
 Alter_Median_Mittelwert <- read_excel("Klinische_Aspekte.xlsx", 
                                       sheet = "Alter_Median_Mittelwert", 
                                       skip = 3)
-
-Sieben_Tage_Inzidenz_Hosp_Alter <- read_excel("Klinische_Aspekte.xlsx", 
-                                          sheet = "7-Tage-Inzidenz_Hosp_Alter", 
-                                          skip = 3)
-
-### Cleanup RKI data ###
 
 Alter_Median <- Alter_Median_Mittelwert[, seq(6)]
 names(Alter_Median) <- c("Meldejahr", "Meldewoche", names(Alter_Median)[seq(from = 3, to = 6, by = 1)])
@@ -220,35 +212,84 @@ Alter_Median_Mittelwert_clean <- Alter_Median_Mittelwert[, c(seq(6), 12, 13, 14,
 names(Alter_Median_Mittelwert_clean) <- c("Meldejahr", "Meldewoche", names(Alter_Median_Mittelwert_clean)[c(-1,-2)])
 Alter_Median_Mittelwert_clean
 
-
 head(Alter_Median_Mittelwert_clean)
+saveRDS(Alter_Median_Mittelwert_clean, file = './daten/Alter_Median_MW')
 
 
+Sieben_Tage_Inzidenz_Hosp_Alter <- read_excel("Klinische_Aspekte.xlsx", 
+                                              sheet = "7-Tage-Inzidenz_Hosp_Alter", 
+                                              skip = 3)
 
+Sieben_Tage_Inzidenz_Hosp_Alter <- 
+  Sieben_Tage_Inzidenz_Hosp_Alter[, -dim(Sieben_Tage_Inzidenz_Hosp_Alter)[[2]]]
 
+head(Sieben_Tage_Inzidenz_Hosp_Alter)
+saveRDS(Sieben_Tage_Inzidenz_Hosp_Alter, file = './daten/Sieben_Tage_Inzidenz_Hosp_Alter')
 
-### Inzidenz Impfstatus excel
-
-Inzidenz_Impfstatus <- read_excel("Inzidenz_Impfstatus.xlsx", 
-                                  sheet = "Symptomatische_nach_Impfstatus", 
-                                  skip = 1)
-
-Inzidenz_Impfstatus <- read_excel("Inzidenz_Impfstatus.xlsx", 
-                                  sheet = "Hospitalisierte_nach_Impfstatus", 
-                                  skip = 1)
-
-
+## nowcast RKI
 
 nowcast_rki <-read.csv('https://raw.githubusercontent.com/robert-koch-institut/SARS-CoV-2-Nowcasting_und_-R-Schaetzung/main/Archiv/Nowcast_R_2021-11-07.csv', header = T)
 
-download.file('https://www.rki.de/DE/Content/InfAZ/N/Neuartiges_Coronavirus/Daten/Fallzahlen_Inzidenz_aktualisiert.xlsx?__blob=publicationFile', 
-              destfile = './Fallzahlen.xlsx', mode = 'wb')
+nowcast_rki$Datum <- as.Date(nowcast_rki$Datum)
+
+saveRDS(nowcast_rki, file = './daten/nowcasting_rki')
+
+## Testzahlen RKI
 
 download.file('https://www.rki.de/DE/Content/InfAZ/N/Neuartiges_Coronavirus/Daten/Testzahlen-gesamt.xlsx?__blob=publicationFile', 
               destfile = './Testzahlen.xlsx', mode = 'wb')
 
-download.file('https://raw.githubusercontent.com/robert-koch-institut/SARS-CoV-2-Nowcasting_und_-R-Schaetzung/main/Archiv/Nowcast_R_2021-11-07.csv',
-              destfile = './Nowcasting.csv', mode = 'wb')
+Testzahlen <- read_excel("Testzahlen.xlsx", 
+                         sheet = "1_Testzahlerfassung")
+Testzahlen <- Testzahlen[c(-1,-dim(Testzahlen)[[1]]) ,]
 
+Testzahlen <- Testzahlen %>%
+  mutate(KW = unlist(str_split(Testzahlen$Kalenderwoche, 
+                               '/'))[seq(dim(Testzahlen)[[1]]) %% 2 == 1],
+         Jahr = unlist(str_split(Testzahlen$Kalenderwoche, 
+                                 '/'))[seq(dim(Testzahlen)[[1]]) %% 2 == 0])
+
+Testzahlen <- Testzahlen[, c(7,6,2,3,4,5)]
+head(Testzahlen)
+
+saveRDS(Testzahlen, file = './daten/Testzahlen')
+
+
+### Inzidenz Impfstatus excel
+
+download.file('https://www.rki.de/DE/Content/InfAZ/N/Neuartiges_Coronavirus/Daten/Inzidenz_Impfstatus.xlsx?__blob=publicationFile',
+              destfile = './Inzidenz_Impfstatus.xlsx', mode = 'wb')
+
+inzidenz_symptomatisch <- read_excel("Inzidenz_Impfstatus.xlsx", 
+                                  sheet = "Symptomatische_nach_Impfstatus", 
+                                  skip = 1)
+
+inzidenz_hospitalisiert <- read_excel("Inzidenz_Impfstatus.xlsx", 
+                                  sheet = "Hospitalisierte_nach_Impfstatus", 
+                                  skip = 1)
+
+head(inzidenz_symptomatisch)
+head(inzidenz_hospitalisiert)
+
+saveRDS(inzidenz_symptomatisch, file = './daten/inzidenz_symptom')
+saveRDS(inzidenz_hospitalisiert, file = './daten/inzidenz_hosp')
+
+
+
+
+### Yegi daten ####
+
+
+library(readr)
+nowcasting_lmu_08_11 <- read_delim("Yegi 9.11/nowcasting_results_2021-11-08.csv", 
+                                            delim = "\t", escape_double = FALSE, 
+                                            trim_ws = TRUE)
+
+saveRDS(nowcasting_lmu_08_11, file = './daten/nowcasting_lmu_08_11')
+
+nowcasting_lmu_08_11_hosp <- read_delim("Yegi 9.11/nowcasting_results_Hospdatum_2021-11-08.csv", 
+                                                      delim = ";", escape_double = FALSE, trim_ws = TRUE)
+
+saveRDS(nowcasting_lmu_08_11_hosp, file = './daten/nowcasting_lmu_08_11_hosp')
 
 

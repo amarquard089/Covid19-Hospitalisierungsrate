@@ -1,0 +1,232 @@
+---
+title: "auswertung"
+author: "Alexander Marquard / 11779957"
+date: "11 11 2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+```
+
+## Datenerfassung
+
+Hier werden zunächst die Daten erfasst
+
+```{r datenerfassung}
+## divi
+
+# tagesreport enthält informationen über covid fälle pro bundesland pro tag
+divi_tagesreport <- readRDS('../daten/divi_tagesreport')
+head(divi_tagesreport)
+
+## RKI
+
+# nowcasting  pro tag
+nowcasting_rki <- readRDS("../daten/nowcasting_rki")
+head(nowcasting_rki)
+
+# Testzahlen pro Woche
+testzahlen <- readRDS('../daten/Testzahlen')
+head(testzahlen)
+
+# inzidenz_impfstatus pro Woche
+inzidenz_symptomatisch <- readRDS('../daten/inzidenz_symptom')
+inzidenz_hospitalisiert <- readRDS('../daten/inzidenz_hosp')
+head(inzidenz_symptomatisch)
+head(inzidenz_hospitalisiert)
+
+# klinische aspekte pro Woche
+
+
+## LMU
+
+# nowcasting symptome pro tag 
+Nowcasting_lmu <- readRDS('../daten/nowcasting_lmu_08_11')
+head(Nowcasting_lmu)
+
+#nowcasting hospitalisierung pro tag
+Nowcasting_lmu_hosp <- readRDS('../daten/nowcasting_lmu_08_11_hosp')
+head(Nowcasting_lmu_hosp)
+
+## Zusätzliche Daten
+
+# bevölkerungsdichte deutschland Stand 31.12.2020
+b_dichte <- readRDS('../daten/bevoelkerungsdichte')
+
+```
+
+
+## Funktionen
+
+Für die leichtere Handhabe mit den Daten
+
+```{r mainfunctions, echo = FALSE, include = FALSE}
+# dateColumns are expected to be of type date. Only one date type column per dataset
+# provide dfnames as vector: c('nowcast_lmu', 'nowcast_rki')
+# Input: ... = Dataframes, so viele wie gewünscht,
+#       dfnames als Vektor
+# Beispiel:
+# compareDatesAndCleanup(nowcast_rki, nowcast_lmu, 
+#                        dfnames = c('nowcast_rki', 'nowcast_lmu'))
+#
+# Kein output -> Datensätze werden direkt verändert
+compareDatesAndCleanup <- function(..., dfnames) {
+  listOfDFs <-  list(...)
+  listOfDFs <- lapply(listOfDFs, as.data.frame)
+  dateCols <- which.isDate(...)
+  dateColsAsList <- Map(list, dateCols, listOfDFs)
+  maxDate <- character(0)
+  minDate <- character(0)
+  for (i in dateColsAsList) {
+    colname <- i[[1]]
+    df <- i[[2]]
+    maxDate <- append(maxDate, df[which.max(df[, colname]), colname])
+    minDate <- append(minDate, df[which.min(df[, colname]), colname])
+  }
+  j <- 1
+  for (i in dateColsAsList) {
+    colname <- i[[1]]
+    df <- i[[2]]
+    lowestMaxDate <- maxDate[which.min(maxDate)]
+    highestMinDate <- minDate[which.max(minDate)]
+    rowsToDeleteMax <- which(df[, colname] > lowestMaxDate)
+    rowsToDeleteMin <- which(df[, colname] < highestMinDate)
+    if (length(rowsToDeleteMax) > 0) {
+      df <- df[-rowsToDeleteMax, ]  
+    }
+    if (length(rowsToDeleteMin) > 0) {
+      df <- df[-rowsToDeleteMin, ]  
+    }
+    assign(dfnames[[j]], df, .GlobalEnv)
+    j <- j + 1
+  }
+}
+
+# Ergänze Jahreszeiten entsprechend der Monate/Kalenderwochen
+# input: df: dataframe/tibble 
+#       date.col.as.string: datum spalte als String
+#       useWeeks: optional
+#       sep = seperator für tagesdaten (-.,|)
+# output:
+#   vektor der einfach mit df$Seasons <- add.Seasons(...) angehängt werden kann
+# beispiel:
+#  add.Seasons(divi_tagesreport, 'date', useWeeks = FALSE, sep = '-') 
+#  add.Seasons(inzidenz_hospitalisiert, 'Meldewoche', useWeeks = TRUE)
+#  add.Seasons(someSampleDfWithDotNotationInTheDateColumn, 'date', sep = '.')
+
+add.Seasons <- function(df, date.col.as.string, useWeeks = FALSE, sep = '-') {
+  df <- as.data.frame(df)
+  if (!useWeeks) {
+    season.list <- lapply(df[, date.col.as.string], function(x) {
+      month <- str_split(x, sep)[[1]][[2]]
+      switch (month,
+              '01' = 'Winter',
+              '02' = 'Winter',
+              '03' = 'Spring',
+              '04' = 'Spring',
+              '05' = 'Spring',
+              '06' = 'Summer',
+              '07' = 'Summer',
+              '08' = 'Summer',
+              '09' = 'Autumn',
+              '10' = 'Autumn',
+              '11' = 'Autumn',
+              '12' = 'Winter'
+            )
+      }
+    )
+  }
+  else if (useWeeks) {
+    season.list <- lapply(df[, date.col.as.string], function(x) {
+      switch(as.character(ceiling(x/4.345)), 
+             '1' = 'Winter',
+              '2' = 'Winter',
+              '3' = 'Spring',
+              '4' = 'Spring',
+              '5' = 'Spring',
+              '6' = 'Summer',
+              '7' = 'Summer',
+              '8' = 'Summer',
+              '9' = 'Autumn',
+              '10' = 'Autumn',
+              '11' = 'Autumn',
+              '12' = 'Winter'
+             )
+      }
+    )
+  }
+  return(unlist(season.list))
+}
+
+
+```
+
+### Helperfunktionen
+
+Helperfunktionen, werden vrstl nicht einzeln gebraucht, sondern nur in Funktionen
+der Übersichtlichkeit halber verwendet.
+
+```{r helper, echo = FALSE, include = FALSE}
+
+which.isDate <- function(...) {
+  listOfDFs <-  list(...)
+  dateCols <- lapply(lapply(listOfDFs, isDate), which)
+  return(names(unlist(dateCols)))
+}
+
+isDate <- function(df) {
+  return(sapply(df, function(x) inherits(x, 'Date')))
+} 
+
+```
+
+
+## Datenanalyse
+
+```{r}
+compareDatesAndCleanup(nowcasting_rki, 
+                      Nowcasting_lmu, 
+                      Nowcasting_lmu_hosp,
+                      divi_tagesreport,
+                      dfnames = c('nowcasting_rki', 
+                                  'Nowcasting_lmu', 
+                                  'Nowcasting_lmu_hosp',
+                                  'divi_tagesreport'))
+
+nowcasting_rki <- nowcasting_rki %>% arrange(desc(Datum))
+head(nowcasting_rki)
+head(Nowcasting_lmu)
+head(divi_tagesreport)
+head(Nowcasting_lmu_hosp)
+
+```
+
+```{r}
+
+
+
+
+
+
+```
+
+
+
+```{r}
+
+
+
+
+
+
+```
+
+
+
+
+
+
+
+

@@ -65,7 +65,6 @@ add.Seasons <- function(df, date.col.as.string) {
             '10' = 'Autumn',
             '11' = 'Autumn',
             '12' = 'Winter'
-            
     )
   })
   return(unlist(season.list))
@@ -80,10 +79,6 @@ lin.mod <- lm(Total ~ PS_COVID_Faelle + Season, data = merged_df)
 predicted_df <- data.frame(total_pred = predict(lin.mod, merged_df), Total=merged_df$Total, Datum = merged_df$Datum)
 
 # this is the predicted line of multiple linear regression
-ggplot(data = df, aes(x = mpg, y = hp)) + 
-  geom_point(color='blue') +
-  geom_line(color='red',data = predicted_df, aes(x=mpg_pred, y=hp))
-
 ggplot(predicted_df) + aes(x = as.Date(Datum), y = total_pred) +
   geom_line() +
   geom_point(aes(y = Total))
