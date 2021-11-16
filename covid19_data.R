@@ -7,7 +7,9 @@
 ###### Divi #####
 #
 
-divi_tagesreport <- read.csv("https://www.divi.de/divi-intensivregister-tagesreport-archiv-csv/viewdocument/6071/divi-intensivregister-2021-11-02-12-15")
+DIVI_URL <- "https://www.divi.de/divi-intensivregister-tagesreport-archiv-csv/viewdocument/6071/divi-intensivregister-2021-11-02-12-15"
+
+divi_tagesreport <- read.csv(DIVI_URL)
 head(divi_tagesreport)
 
 ### Columns (pls view divi_tagesreport_Erklaerung_Spalten.pdf):
@@ -165,7 +167,7 @@ divi_tagesreport <- divi_tagesreport %>%
 # delta belegte bette und belegte betten nur erwachsen. Entspricht anzahl
 # kinder auf intensivstation
 
-saveRDS(divi_tagesreport, file = './daten/divi_tagesreport')
+saveRDS(divi_tagesreport, file = './daten/divi_tagesreport.Rds')
 
 #
 ##### RKI #####
@@ -184,7 +186,7 @@ library(readxl)
 Klinische_Aspekte <- read_excel("Klinische_Aspekte.xlsx", 
                                 sheet = "Klinische_Aspekte", skip = 2)
 
-saveRDS(Klinische_Aspekte, file = './daten/klinische_aspekte')
+saveRDS(Klinische_Aspekte, file = './daten/klinische_aspekte.Rds')
 
 
 Faelle_Hospitalisierung_Alter <- read_excel("Klinische_Aspekte.xlsx", 
@@ -193,7 +195,7 @@ Faelle_Hospitalisierung_Alter <- read_excel("Klinische_Aspekte.xlsx",
 Faelle_Hospitalisierung_Alter <- 
   Faelle_Hospitalisierung_Alter[, -dim(Faelle_Hospitalisierung_Alter)[[2]]]
 
-saveRDS(Faelle_Hospitalisierung_Alter, file = './daten/Faelle_Hosp_Alter')
+saveRDS(Faelle_Hospitalisierung_Alter, file = './daten/Faelle_Hosp_Alter.Rds')
 
 
 Alter_Median_Mittelwert <- read_excel("Klinische_Aspekte.xlsx", 
@@ -213,7 +215,7 @@ names(Alter_Median_Mittelwert_clean) <- c("Meldejahr", "Meldewoche", names(Alter
 Alter_Median_Mittelwert_clean
 
 head(Alter_Median_Mittelwert_clean)
-saveRDS(Alter_Median_Mittelwert_clean, file = './daten/Alter_Median_MW')
+saveRDS(Alter_Median_Mittelwert_clean, file = './daten/Alter_Median_MW.Rds')
 
 
 Sieben_Tage_Inzidenz_Hosp_Alter <- read_excel("Klinische_Aspekte.xlsx", 
@@ -224,7 +226,7 @@ Sieben_Tage_Inzidenz_Hosp_Alter <-
   Sieben_Tage_Inzidenz_Hosp_Alter[, -dim(Sieben_Tage_Inzidenz_Hosp_Alter)[[2]]]
 
 head(Sieben_Tage_Inzidenz_Hosp_Alter)
-saveRDS(Sieben_Tage_Inzidenz_Hosp_Alter, file = './daten/Sieben_Tage_Inzidenz_Hosp_Alter')
+saveRDS(Sieben_Tage_Inzidenz_Hosp_Alter, file = './daten/Sieben_Tage_Inzidenz_Hosp_Alter.Rds')
 
 ## nowcast RKI
 
@@ -232,7 +234,7 @@ nowcast_rki <-read.csv('https://raw.githubusercontent.com/robert-koch-institut/S
 
 nowcast_rki$Datum <- as.Date(nowcast_rki$Datum)
 
-saveRDS(nowcast_rki, file = './daten/nowcasting_rki')
+saveRDS(nowcast_rki, file = './daten/nowcasting_rki.Rds')
 
 ## Testzahlen RKI
 
@@ -252,7 +254,7 @@ Testzahlen <- Testzahlen %>%
 Testzahlen <- Testzahlen[, c(7,6,2,3,4,5)]
 head(Testzahlen)
 
-saveRDS(Testzahlen, file = './daten/Testzahlen')
+saveRDS(Testzahlen, file = './daten/Testzahlen.Rds')
 
 
 ### Inzidenz Impfstatus excel
@@ -271,8 +273,8 @@ inzidenz_hospitalisiert <- read_excel("Inzidenz_Impfstatus.xlsx",
 head(inzidenz_symptomatisch)
 head(inzidenz_hospitalisiert)
 
-saveRDS(inzidenz_symptomatisch, file = './daten/inzidenz_symptom')
-saveRDS(inzidenz_hospitalisiert, file = './daten/inzidenz_hosp')
+saveRDS(inzidenz_symptomatisch, file = './daten/inzidenz_symptom.Rds')
+saveRDS(inzidenz_hospitalisiert, file = './daten/inzidenz_hosp.Rds')
 
 
 
@@ -285,11 +287,11 @@ nowcasting_lmu_08_11 <- read_delim("Yegi 9.11/nowcasting_results_2021-11-08.csv"
                                             delim = "\t", escape_double = FALSE, 
                                             trim_ws = TRUE)
 
-saveRDS(nowcasting_lmu_08_11, file = './daten/nowcasting_lmu_08_11')
+saveRDS(nowcasting_lmu_08_11, file = './daten/nowcasting_lmu_08_11.Rds')
 
 nowcasting_lmu_08_11_hosp <- read_delim("Yegi 9.11/nowcasting_results_Hospdatum_2021-11-08.csv", 
                                                       delim = ";", escape_double = FALSE, trim_ws = TRUE)
 
-saveRDS(nowcasting_lmu_08_11_hosp, file = './daten/nowcasting_lmu_08_11_hosp')
+saveRDS(nowcasting_lmu_08_11_hosp, file = './daten/nowcasting_lmu_08_11_hosp.Rds')
 
 

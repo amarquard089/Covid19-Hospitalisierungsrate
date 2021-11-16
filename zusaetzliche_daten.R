@@ -51,7 +51,7 @@ head(bevoelkerungsdichte)
 library(dplyr)
 bevoelkerungsdichte <- bevoelkerungsdichte %>% mutate(b_dichte = bevoelkerung / flaeche_qkm)
 
-saveRDS(bevoelkerungsdichte, file = './daten/bevoelkerungsdichte')
+saveRDS(bevoelkerungsdichte, file = './daten/bevoelkerungsdichte.Rds')
 
 
 

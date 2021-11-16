@@ -18,22 +18,22 @@ Hier werden zunächst die Daten erfasst
 ## divi
 
 # tagesreport enthält informationen über covid fälle pro bundesland pro tag
-divi_tagesreport <- readRDS('../daten/divi_tagesreport')
+divi_tagesreport <- readRDS('../daten/divi_tagesreport.Rds')
 head(divi_tagesreport)
 
 ## RKI
 
 # nowcasting  pro tag
-nowcasting_rki <- readRDS("../daten/nowcasting_rki")
+nowcasting_rki <- readRDS("../daten/nowcasting_rki.Rds")
 head(nowcasting_rki)
 
 # Testzahlen pro Woche
-testzahlen <- readRDS('../daten/Testzahlen')
+testzahlen <- readRDS('../daten/Testzahlen.Rds')
 head(testzahlen)
 
 # inzidenz_impfstatus pro Woche
-inzidenz_symptomatisch <- readRDS('../daten/inzidenz_symptom')
-inzidenz_hospitalisiert <- readRDS('../daten/inzidenz_hosp')
+inzidenz_symptomatisch <- readRDS('../daten/inzidenz_symptom.Rds')
+inzidenz_hospitalisiert <- readRDS('../daten/inzidenz_hosp.Rds')
 head(inzidenz_symptomatisch)
 head(inzidenz_hospitalisiert)
 
@@ -43,17 +43,18 @@ head(inzidenz_hospitalisiert)
 ## LMU
 
 # nowcasting symptome pro tag 
-Nowcasting_lmu <- readRDS('../daten/nowcasting_lmu_08_11')
+Nowcasting_lmu <- readRDS('../daten/nowcasting_lmu_08_11.Rds')
 head(Nowcasting_lmu)
 
 #nowcasting hospitalisierung pro tag
-Nowcasting_lmu_hosp <- readRDS('../daten/nowcasting_lmu_08_11_hosp')
+Nowcasting_lmu_hosp <- readRDS('../daten/nowcasting_lmu_08_11_hosp.Rds')
 head(Nowcasting_lmu_hosp)
 
 ## Zusätzliche Daten
 
 # bevölkerungsdichte deutschland Stand 31.12.2020
-b_dichte <- readRDS('../daten/bevoelkerungsdichte')
+b_dichte <- readRDS('../daten/bevoelkerungsdichte.Rds')
+head(b_dichte)
 
 ```
 
@@ -198,14 +199,81 @@ compareDatesAndCleanup(nowcasting_rki,
 nowcasting_rki <- nowcasting_rki %>% arrange(desc(Datum))
 head(nowcasting_rki)
 head(Nowcasting_lmu)
+divi_tagesreport <- divi_tagesreport %>% arrange(desc(date))
 head(divi_tagesreport)
 head(Nowcasting_lmu_hosp)
 
 ```
 
-```{r}
+```{r distribution of daily cases}
+# Zu Berücksichtigen ist, dass hospitalisierte Personen weniger zur Verbreitung
+# des Corona-Virus beitragen, da diese in isolierten Stationen sind.
 
+# Für wöchentliche Daten soll eine Verteilung der Covid-Fälle pro Tag genutzt 
+# werden, welche aus den tagesdaten zu erschließen ist
+# Hierfür werden die Daten von bayern (LMU) und deutschlandweit (RKI) verglichen
 
+# Das RKI liefert ebenfalls ge-nowcastete Daten
+
+# Ergänze zunächst Tage und Kalenderwochen
+
+nowcasting_rki$weekday <- as.factor(weekdays(nowcasting_rki$Datum, abbreviate = TRUE))
+nowcasting_rki$calendarweek <- as.factor(str_c(strftime(nowcasting_rki$Datum, format = '%V'), 
+                                        as.character(nowcasting_rki$Datum, format = '%Y'), 
+                                     sep = '-'))
+Nowcasting_lmu$weekday <- as.factor(weekdays(Nowcasting_lmu$date, abbreviate = TRUE))
+Nowcasting_lmu$calendarweek <- as.factor(str_c(strftime(Nowcasting_lmu$date, format = '%V'), 
+                                        as.character(Nowcasting_lmu$date, format = '%Y'), 
+                                     sep = '-'))
+
+rel_haeuf_rki <- nowcasting_rki %>% group_by(calendarweek) %>% 
+  mutate(sum_faelle = sum(PS_COVID_Faelle)) %>%
+  mutate(rel_haeuf = PS_COVID_Faelle / sum_faelle) %>%
+  filter(Datum > '2020-04-26' & Datum < '2021-11-01') %>%
+  group_by(weekday) %>%
+  summarise(mean(rel_haeuf))
+
+rel_haeuf_lmu <- Nowcasting_lmu %>% group_by(calendarweek) %>% 
+  mutate(sum_faelle = sum(nowcast_med)) %>%
+  mutate(rel_haeuf = nowcast_med / sum_faelle) %>%
+  filter(date > '2020-04-26' & date < '2021-11-01') %>%
+  group_by(weekday) %>%
+  summarise(mean(rel_haeuf))
+
+# compare results
+
+res <- left_join(rel_haeuf_rki, rel_haeuf_lmu, by = 'weekday')
+res %>% mutate(diff = `mean(rel_haeuf).x` - `mean(rel_haeuf).y`)
+
+# Differenz zwischen den Ergebnissen ist nicht signifikant. 
+
+# Überprüfe, ob diese Ergebnisse über die gesamte Zeit verwendet werden können,
+# oder ob es größere/häufigere Ausreißer gibt
+
+rel_haeuf_rki_allTime <- nowcasting_rki %>% group_by(calendarweek) %>% 
+  mutate(sum_faelle = sum(PS_COVID_Faelle)) %>%
+  mutate(rel_haeuf = PS_COVID_Faelle / sum_faelle) %>%
+  filter(Datum > '2020-04-26' & Datum < '2021-11-01') 
+
+rel_haeuf_lmu_allTime <- Nowcasting_lmu %>% group_by(calendarweek) %>% 
+  mutate(sum_faelle = sum(nowcast_med)) %>%
+  mutate(rel_haeuf = nowcast_med / sum_faelle) %>%
+  filter(date > '2020-04-26' & date < '2021-11-01') 
+
+# plot rel_haeuf über gesamte Zeit
+
+ggplot(rel_haeuf_lmu_allTime) + aes(x = weekday, y = rel_haeuf, col = 'lmu') +
+  geom_point() + geom_point(data = rel_haeuf_rki_allTime, 
+                            aes(x = weekday, y = rel_haeuf, color = 'rki')) +
+  scale_color_manual(values = c("blue", "red"))
+
+# Ergebnisse streuen gleichmäßig um die berechneten Werte mit einigen wenigen 
+# Ausreißern, können also verwendet werden
+
+# welche Daten weisen eine geringe Streuung auf
+
+# Braucht man den mean überhaupt? Es können auch einfach die genauen rel. Häuf.
+# genutzt werden
 
 
 
@@ -214,10 +282,11 @@ head(Nowcasting_lmu_hosp)
 
 
 
-```{r}
+```{r test}
 
 
 
+left_join(nowcasting_rki, b_dichte)
 
 
 
