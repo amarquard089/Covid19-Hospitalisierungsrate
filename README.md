@@ -94,7 +94,7 @@ Jeder stellt Modelle vor für
 - Datensatz: wie könnte der aussehen? (Was sind unsere kovariablen?)
 mit Quelle
 
-
+änderung im Gam Branch
 
 
 
