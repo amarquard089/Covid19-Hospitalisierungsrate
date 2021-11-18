@@ -3,13 +3,20 @@
 ##############################  Dokumentation ##############################  
 #
 
+# Run python to collect files
+ 
+if (FALSE) {
+  if (!require("reticulate")) install.packages("reticulate")
+  reticulate::py_run_file("fetchdata.py")
+}
+
+
 #
 ###### Divi #####
 #
 
-DIVI_URL <- "https://www.divi.de/divi-intensivregister-tagesreport-archiv-csv/viewdocument/6071/divi-intensivregister-2021-11-02-12-15"
 
-divi_tagesreport <- read.csv(DIVI_URL)
+divi_tagesreport <- read.csv("divi_tagesreport.csv", header = TRUE)
 head(divi_tagesreport)
 
 ### Columns (pls view divi_tagesreport_Erklaerung_Spalten.pdf):
@@ -230,7 +237,7 @@ saveRDS(Sieben_Tage_Inzidenz_Hosp_Alter, file = './daten/Sieben_Tage_Inzidenz_Ho
 
 ## nowcast RKI
 
-nowcast_rki <-read.csv('https://raw.githubusercontent.com/robert-koch-institut/SARS-CoV-2-Nowcasting_und_-R-Schaetzung/main/Archiv/Nowcast_R_2021-11-07.csv', header = T)
+nowcast_rki <- read.csv("rki_nowcast.csv", header = T)
 
 nowcast_rki$Datum <- as.Date(nowcast_rki$Datum)
 
@@ -276,8 +283,38 @@ head(inzidenz_hospitalisiert)
 saveRDS(inzidenz_symptomatisch, file = './daten/inzidenz_symptom.Rds')
 saveRDS(inzidenz_hospitalisiert, file = './daten/inzidenz_hosp.Rds')
 
+## RKI Impfung nach Bundesländern
 
+rki_impfung_bl <- read.csv('rki_impfung_bundeslaender.csv', header = T)
+# ergänze Bundesländer
+rki_impfung_bl$Impfdatum <- as.Date(rki_impfung_bl)
+rki_bundeslaender = data.frame('BundeslandId_Impfort' = seq(16), 
+                                'bundesland_char' = c("Schleswig-Holstein",
+                                                      "Hamburg",
+                                                      "Niedersachsen",
+                                                      "Bremen",
+                                                      "Nordrhein-Westfalen",
+                                                      "Hessen",
+                                                      "Rheinland-Pfalz",
+                                                      "Baden-Württemberg",
+                                                      "Bayern",
+                                                      "Saarland",
+                                                      "Berlin",
+                                                      "Brandenburg",
+                                                      "Mecklenburg-Vorpommern",
+                                                      "Sachsen",
+                                                      "Sachsen-Anhalt",
+                                                      "Thüringen")
+)
+library(dplyr)
+rki_impfung_bl <- left_join(rki_impfung_bl, rki_bundeslaender, by = 'BundeslandId_Impfort')
+head(rki_impfung_bl)
+saveRDS(rki_impfung_bl, file = './daten/rki_impfung_nach_bundesland.Rds')
 
+rki_impfung_impfquote_heute <- read.csv('rki_impfung_impfquote.csv', header = T)
+rki_impfung_impfquote_heute$Datum <- as.Date(rki_impfung_impfquote_heute$Datum)
+head(rki_impfung_impfquote_heute)
+saveRDS(rki_impfung_impfquote_heute, file = './daten/rki_impfung_gesamt_aktuell.Rds') 
 
 ### Yegi daten ####
 

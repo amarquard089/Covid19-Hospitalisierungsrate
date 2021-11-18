@@ -68,16 +68,16 @@ Statistisches Praktikum. Thema: Covid 19 - Vorhersage der Hospitalisierungsrate
 ## Gewünschte Aufgaben
 
 Johannes
-- Tendenz zum Bericht schreiben
-
-Qian
-- Bericht
-- Datenanalyse
+- SEIR
 
 Phu
-- 
+- SEIR
+
+Qian
+- GAM
 
 Alex
+- GAM/GAM with fixed Effects
 
 ## Einteilung
 

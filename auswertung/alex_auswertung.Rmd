@@ -37,8 +37,15 @@ inzidenz_hospitalisiert <- readRDS('../daten/inzidenz_hosp.Rds')
 head(inzidenz_symptomatisch)
 head(inzidenz_hospitalisiert)
 
+# impfung pro tag + impfstoff
+rki_impfung_nach_bl <- readRDS('../daten/rki_impfung_nach_bundesland.Rds')
+head(rki_impfung_nach_bl)
+rki_impfung_impfquote_aktuell <- readRDS("../daten/rki_impfung_gesamt_aktuell.Rds")
+head(rki_impfung_impfquote_aktuell)
+
 # klinische aspekte pro Woche
 
+Sieben_Tage_Inzidenz_Hosp_Alter <- readRDS("../daten/Sieben_Tage_Inzidenz_Hosp_Alter.Rds")
 
 ## LMU
 
@@ -274,21 +281,150 @@ ggplot(rel_haeuf_lmu_allTime) + aes(x = weekday, y = rel_haeuf, col = 'lmu') +
 
 # Braucht man den mean überhaupt? Es können auch einfach die genauen rel. Häuf.
 # genutzt werden
-
-
-
-
 ```
 
 
 
-```{r test}
+```{r deskriptive Auswertung}
+# Ziel ist die Vorhersage der hospitalisierten Personen
+# betrachte zunächst, die einzelnen Personengruppen und den Anteil der 
+# hospitalisierten Personen
+
+inzidenz_symptomatisch$Datum <- as.Date(paste("2021", 
+                                              inzidenz_symptomatisch$Meldewoche, 
+                                              1, sep = "-"), 
+                                        '%Y-%U-%u')
+
+inzidenz_hospitalisiert$Datum <- as.Date(paste("2021", 
+                                              inzidenz_hospitalisiert$Meldewoche, 
+                                              1, sep = "-"), 
+                                        '%Y-%U-%u')
+
+a <- ggplot(inzidenz_symptomatisch) + aes(x = Datum, y = `Ungeimpfte 18-59 Jahre`, col = "Ungeimpft 18-59") +
+  geom_line() +
+  geom_line(aes(x = Datum, y = `Ungeimpfte 60+ Jahre`, col = "Ungeimpft 60+")) + 
+  geom_line(aes(x = Datum, y = `Vollständig Geimpfte  18-59 Jahre`, col = "Vollst. geimpft 18-59")) +
+  geom_line(aes(x = Datum, y = `Vollständig Geimpfte 60+ Jahre`, col = "Vollst. geimpft 60+")) +
+  ylab("Inzidnez") +
+  guides(col = guide_legend(title = "Altersstufen")) + labs(title = "7 Tage Inzidenz") +
+  scale_color_manual(values = c("#fc9272", "#de2d26", "#31a354", "#a1d99b")) +
+  theme_minimal()
+
+b <- ggplot(inzidenz_hospitalisiert) + aes(x = Datum, y = `Ungeimpfte 18-59 Jahre`, col = "Ungeimpft 18-59") +
+  geom_line() +
+  geom_line(aes(x = Datum, y = `Ungeimpfte 60+ Jahre`, col = "Ungeimpft 60+")) + 
+  geom_line(aes(x = Datum, y = `Vollständig Geimpfte  18-59 Jahre`, col = "Vollst. geimpft 18-59")) +
+  geom_line(aes(x = Datum, y = `Vollständig Geimpfte 60+ Jahre`, col = "Vollst. geimpft 60+")) +
+  ylab("Inzidnez") +
+  guides(col = guide_legend(title = "Altersstufen")) + labs(title = "7 Tage HospitalisierungInzidenz") +
+  scale_color_manual(values = c("#fc9272", "#de2d26", "#31a354", "#a1d99b")) +
+  theme_minimal()
+
+
+Sieben_Tage_Inzidenz_Hosp_Alter$Datum <- as.Date(paste(Sieben_Tage_Inzidenz_Hosp_Alter$Meldejahr,
+                                                       Sieben_Tage_Inzidenz_Hosp_Alter$Meldewoche, 
+                                                       1, sep = '-'), 
+                                                 '%Y-%U-%u')
+
+c <- ggplot(Sieben_Tage_Inzidenz_Hosp_Alter) + 
+  aes(x = Datum,
+      y = `Inzidenz A00..04`, col = "0-4") + geom_path() +
+  geom_path(aes(x = Datum, y = `Inzidenz A05..14`, col = "5-14")) +
+  geom_path(aes(x = Datum, y = `Inzidenz A15..34`, col = "15-34")) +
+  geom_path(aes(x = Datum, y = `Inzidenz A35..59`, col = "35-59")) +
+  geom_path(aes(x = Datum, y = `Inzidenz A60..79`, col = "60-79")) +
+  geom_path(aes(x = Datum, y = `Inzidenz A80+`, col = "80+")) +
+  ylab("Inzidenz") +
+  guides(col = guide_legend(title = "Altersstufen")) + 
+  labs(title = "7 Tage Hospitalisierungsinzidenz") +
+  theme_minimal()
+
+ggpubr::ggarrange(a,b,c)
+
+
+head(divi_tagesreport)
+
+divi_tagesreport_sum <- divi_tagesreport %>% group_by(date, bundesland_fact) %>%
+  mutate(sum_faelle = sum(faelle_covid_aktuell)) %>% select(date, bundesland_fact, sum_faelle) %>% 
+  distinct(date, bundesland_fact, sum_faelle)
+
+ggplot(divi_tagesreport_sum) + aes(x = date, y = sum_faelle, col = bundesland_fact) +
+  geom_line() +
+  scale_x_date(breaks = "2 month") +
+  guides(col = guide_legend(title = "Bundesländer")) + 
+  labs(title = "Anz. Hospitalisierte Personen") +
+  ylab("Covid Fälle") + xlab("Datum") +
+  theme_minimal() 
+
+
+# Analysiere prozentuale Änderung der Impfquote pro Bundesland. Gibt es einen zusammenhang zu dem an/abstieg der inzidenz
+
+head(rki_impfung_nach_bl)
+
+rki_impfung_nach_bl$bundesland_fact <- as.factor(rki_impfung_nach_bl$bundesland_char) 
+
+rki_impfung_nach_bl_sum <- rki_impfung_nach_bl %>% group_by(Impfdatum, bundesland_fact) %>%
+  mutate(sum_impfung = sum(Anzahl)) %>%
+  distinct(Impfdatum, bundesland_fact, sum_impfung) %>% 
+  mutate(Bundesland = bundesland_fact)
+
+rki_impfung_nach_bl_sum_total <- rki_impfung_nach_bl %>% group_by(Impfdatum, bundesland_fact) %>%
+  mutate(sum_impfung = sum(Anzahl)) %>%
+  distinct(Impfdatum, bundesland_fact, sum_impfung) %>% 
+  group_by(bundesland_fact) %>% mutate(sum_impfung_total = sum(sum_impfung)) %>%
+  distinct(bundesland_fact, sum_impfung_total) %>% mutate(Bundesland = bundesland_fact)
+
+# Vergleiche mit daten vom rki
+
+rki_impfung_all_time <- left_join(rki_impfung_nach_bl_sum_total, 
+                                  rki_impfung_impfquote_aktuell, by = "Bundesland")
+
+rki_impfung_all_time
+
+# passt
+
+rki_impfung_nach_bl_sum <-left_join(rki_impfung_nach_bl_sum, 
+                                    rki_impfung_impfquote_aktuell, by = "Bundesland")
+
+rki_impfung_nach_bl_sum <- rki_impfung_nach_bl_sum %>% group_by(Impfdatum) %>% 
+  select(Impfdatum, Bundesland, sum_impfung, Impfungen_gesamt) %>% 
+  group_by(Impfdatum, Bundesland) %>% 
+  mutate(Anteil_Impfungen_BL = sum_impfung / Impfungen_gesamt) %>%
+  filter(!is.na(Bundesland))
+
+rki_impfung_nach_bl_sum$Impfdatum <- as.Date(rki_impfung_nach_bl_sum$Impfdatum)
+
+rki_impfung_nach_bl_sum2 <- rki_impfung_nach_bl_sum %>% group_by(Impfdatum) %>%
+  summarise(mean_total = mean(sum_impfung), mean_perc = mean(Anteil_Impfungen_BL))
+
+p1 <- ggplot() +
+  geom_line(data = rki_impfung_nach_bl_sum, 
+            aes(x = Impfdatum, y = Anteil_Impfungen_BL, col = Bundesland),
+            alpha = 0.3) +
+  geom_line(data = rki_impfung_nach_bl_sum2, 
+            aes(x = Impfdatum, y = mean_perc),
+            size = 2,
+            alpha = 0.9)
+  
+p2 <- ggplot() +
+  geom_line(data = rki_impfung_nach_bl_sum, 
+            aes(x = Impfdatum, y = sum_impfung, col = Bundesland), 
+            alpha = 0.3) + 
+  geom_line(data = rki_impfung_nach_bl_sum2, 
+            aes(x = Impfdatum, y = mean_total), 
+            size = 2,
+            alpha = 0.9)
+
+ggpubr::ggarrange(p1, p2, ncol = 2)
+
+# lege Inzidenzen drüber
 
 
 
-left_join(nowcasting_rki, b_dichte)
 
 
+  
+# Analysiere welcher Impfstoff wie häufig verteilt wurde
 
 ```
 
