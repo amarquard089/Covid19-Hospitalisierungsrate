@@ -1,0 +1,197 @@
+---
+title: "qian/auswertung/deskriptiv"
+author: "Qian Feng"
+date: "2021/11/21"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(data.table)
+```
+
+## Datenerfassung
+
+Hier werden zunächst die Daten erfasst
+
+```{r datenerfassung}
+## divi
+
+# tagesreport enthält informationen über covid fälle pro bundesland pro tag
+divi_tagesreport <- readRDS('../daten/divi_tagesreport.Rds')
+head(divi_tagesreport)
+summary(divi_tagesreport)
+
+## RKI
+
+# nowcasting  pro tag
+nowcasting_rki <- readRDS("../daten/nowcasting_rki.Rds")
+head(nowcasting_rki)
+summary(nowcasting_rki)
+
+# Testzahlen pro Woche
+testzahlen <- readRDS('../daten/Testzahlen.Rds')
+head(testzahlen)
+summary(testzahlen)
+
+# inzidenz_impfstatus pro Woche
+inzidenz_symptomatisch <- readRDS('../daten/inzidenz_symptom.Rds')
+inzidenz_hospitalisiert <- readRDS('../daten/inzidenz_hosp.Rds')
+head(inzidenz_symptomatisch)
+head(inzidenz_hospitalisiert)
+summary(inzidenz_symptomatisch)
+summary(inzidenz_hospitalisiert)
+
+# impfung pro tag + impfstoff
+rki_impfung_nach_bl <- readRDS('../daten/rki_impfung_nach_bundesland.Rds')
+head(rki_impfung_nach_bl)
+summary(rki_impfung_nach_bl)
+rki_impfung_impfquote_aktuell <- readRDS("../daten/rki_impfung_gesamt_aktuell.Rds")
+head(rki_impfung_impfquote_aktuell)
+summary(rki_impfung_impfquote_aktuell)
+
+# klinische aspekte pro Woche
+
+Sieben_Tage_Inzidenz_Hosp_Alter <- readRDS("../daten/Sieben_Tage_Inzidenz_Hosp_Alter.Rds")
+head(Sieben_Tage_Inzidenz_Hosp_Alter)
+summary(Sieben_Tage_Inzidenz_Hosp_Alter)
+
+## LMU
+
+# nowcasting symptome pro tag 
+Nowcasting_lmu <- readRDS('../daten/nowcasting_lmu_08_11.Rds')
+head(Nowcasting_lmu)
+summary(Nowcasting_lmu)
+
+#nowcasting hospitalisierung pro tag
+Nowcasting_lmu_hosp <- readRDS('../daten/nowcasting_lmu_08_11_hosp.Rds')
+head(Nowcasting_lmu_hosp)
+summary(Nowcasting_lmu_hosp)
+
+## Zusätzliche Daten
+
+# bevölkerungsdichte deutschland Stand 31.12.2020
+b_dichte <- readRDS('../daten/bevoelkerungsdichte.Rds')
+head(b_dichte)
+
+```
+
+Deskriptive Statistik
+
+divi
+```{r analysis}
+divi_tagesreport <- readRDS('../daten/divi_tagesreport.Rds')
+# Hospitalisierung und Zeit
+divi_tagesreport <- data.table(divi_tagesreport)
+divi_tagesreport <- select(divi_tagesreport, -gemeindeschluessel) # Column "gemeindeschluessel" weg nehmen
+divi_tagesreport <- select(divi_tagesreport, -bundesland_char) # Column "bundesland_char" weg nehmen
+divi_tagesreport <- divi_tagesreport[, lapply(.SD, sum), by=list(date, bundesland_fact)] # An einem Tag gibt es nur die Information fuer ein ganzes Bundesland, aber keine Gemeinde 
+divi_tagesreport_new <- select(divi_tagesreport, c(date, faelle_covid_aktuell, bundesland_fact))
+
+ggplot(divi_tagesreport_new) + aes(x = date, y = faelle_covid_aktuell) +
+  geom_line() +
+  facet_wrap(~ bundesland_fact, ncol = 4) + 
+  labs(title = "Hospitalisierung und Zeit") +
+  ylab("Covid Faelle") + xlab("Datum")
+
+# Hospitalisierung und Jahreszeit
+# function
+add.Seasons <- function(df, date.col.as.string, useWeeks = FALSE, sep = '-') {
+  df <- as.data.frame(df)
+  if (!useWeeks) {
+    season.list <- lapply(df[, date.col.as.string], function(x) {
+      month <- str_split(x, sep)[[1]][[2]]
+      switch (month,
+              '01' = 'Winter',
+              '02' = 'Winter',
+              '03' = 'Spring',
+              '04' = 'Spring',
+              '05' = 'Spring',
+              '06' = 'Summer',
+              '07' = 'Summer',
+              '08' = 'Summer',
+              '09' = 'Autumn',
+              '10' = 'Autumn',
+              '11' = 'Autumn',
+              '12' = 'Winter'
+            )
+      }
+    )
+  }
+  else if (useWeeks) {
+    season.list <- lapply(df[, date.col.as.string], function(x) {
+      switch(as.character(ceiling(x/4.345)), 
+             '1' = 'Winter',
+              '2' = 'Winter',
+              '3' = 'Spring',
+              '4' = 'Spring',
+              '5' = 'Spring',
+              '6' = 'Summer',
+              '7' = 'Summer',
+              '8' = 'Summer',
+              '9' = 'Autumn',
+              '10' = 'Autumn',
+              '11' = 'Autumn',
+              '12' = 'Winter'
+             )
+      }
+    )
+  }
+  return(unlist(season.list))
+}
+season <- add.Seasons(divi_tagesreport, 'date', useWeeks = FALSE, sep = '-')
+divi_tagesreport$jahreszeit <- season
+divi_tagesreport_jahreszeit <- select(divi_tagesreport, c(jahreszeit, faelle_covid_aktuell, bundesland_fact))
+divi_tagesreport_jahreszeit <- divi_tagesreport_jahreszeit[, lapply(.SD, sum), by=list(jahreszeit, bundesland_fact)]
+
+ggplot(divi_tagesreport_jahreszeit) + aes(x = jahreszeit, y = faelle_covid_aktuell) +
+  geom_point() +
+  facet_wrap(~ bundesland_fact, ncol = 4) + 
+  labs(title = "Hospitalisierung und Jahreszeit") +
+  ylab("Covid Faelle") + xlab("Jahreszeit")
+```
+
+vergleichen reported and nowcasting
+```{r analysis}
+Nowcasting_lmu_hosp <- readRDS('../daten/nowcasting_lmu_08_11_hosp.Rds')
+Nowcasting_lmu_hosp
+divi_tagesreport <- readRDS('../daten/divi_tagesreport.Rds')
+divi_tagesreport
+divi_tagesreport <- data.table(divi_tagesreport)
+divi_tagesreport <- select(divi_tagesreport, -gemeindeschluessel) # Column "gemeindeschluessel" weg nehmen
+divi_tagesreport <- select(divi_tagesreport, -bundesland_char) # Column "bundesland_char" weg nehmen
+divi_tagesreport <- select(divi_tagesreport, -bundesland_fact) # Column "bundesland_fact" weg nehmen
+divi_tagesreport <- divi_tagesreport[, lapply(.SD, sum), by=list(date)] # An einem Tag gibt es nur die Information fuer ein einem Tag, aber keine Bundeslaender
+divi_tagesreport_date <- select(divi_tagesreport, c(date, faelle_covid_aktuell))
+Nowcasting_lmu_hosp_nowcastest <- select(Nowcasting_lmu_hosp, c(date, reported,  nowcast_est))
+library(dplyr)
+divi_Nowcasting_lmu_hosp <- left_join(divi_tagesreport_date, Nowcasting_lmu_hosp_nowcastest, by=c("date"))
+divi_Nowcasting_lmu_hosp
+```
+
+Alterstufen
+```{r analysis}
+Sieben_Tage_Inzidenz_Hosp_Alter <- readRDS("../daten/Sieben_Tage_Inzidenz_Hosp_Alter.Rds")
+Sieben_Tage_Inzidenz_Hosp_Alter$date <- as.Date(paste(Sieben_Tage_Inzidenz_Hosp_Alter$Meldejahr,
+                                                      Sieben_Tage_Inzidenz_Hosp_Alter$Meldewoche, 
+                                                       1, sep = '-'), 
+                                                 '%Y-%U-%u')
+
+ggplot(Sieben_Tage_Inzidenz_Hosp_Alter, aes(x = date)) +
+  geom_line(y = `Inzidenz A00..04`) +
+  geom_line(y = `Inzidenz A05..14`) +
+  geom_line(y = `Inzidenz A15..34`) +
+  geom_line(y = `Inzidenz A35..59`) +
+  geom_line(y = `Inzidenz A60..79`) +
+  geom_line(y = `Inzidenz A80+`) +
+  labs(title = "Hospitalisierung und Alterstufen") +
+  ylab("Inzidenz") + xlab("Meldewoche")
+```
+
+Impfstatus
+```{r analysis}
+rki_impfung_nach_bl <- readRDS('../daten/rki_impfung_nach_bundesland.Rds')
+rki_impfung_nach_bl
+rki_impfung_nach_bl_new <- select(rki_impfung_nach_bl, c(Impfdatum, Impfserie,  Anzahl, bundesland_char))
+```
