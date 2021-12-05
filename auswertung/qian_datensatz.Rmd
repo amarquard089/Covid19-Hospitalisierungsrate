@@ -16,14 +16,14 @@ library(lubridate)
 library(tidyverse)
 ```
 
-Man kann einfach alle Chunks durchfueheren und die finalen Datensaetze in letzten zwei Chunks finden:
+Man kann einfach alle Chunks durchfueheren und die finalen Datensatz in letzten Chunk finden:
 1. Zusammenfassung inzidenz nach Anmeldedatum, Hospitalisierung, impfquote und Lockdown: "inzidenznachAnmeldedatum_hosp_impf_lock"
 
 Alle Daten sind bis KW2021/47.
 Jede Data Frame gibt es 10 Columns: Kalenderjahr, Kalenderwoche, Bundesland, Altersgruppe, Neuerkrankung, Hospitalisierung, Jahreszeit, Impfquote, Lockdown, Jahrwoche.
 Die Definition von "Imfquote" ist z.B Anzahl der gesamte von der Imfung vollstaendig geschuetzte Geimpfte im Alter 60+ aus Bayern/Alle Bevoekerung im Alter 60+ aus Bayern
 von der Imfung vollstaendig geschuetzte Geimpfte: wer vollstaendig geimpfte und nach 14 Tagen, z.B jemand hat am 11.03.2021 vollstaendig geimpft, dann wird er am 25.03.2021 vollstaendig geschuetzt.
-Am Zeile 184 und 307 gibt es chinesische Zeichen, denn wenn ich weekdays() durchfuehre, gibt es nur chinesische Zeichen bei mir. Wenn chinesische Zeichen bei dir nicht gelesen werden koennen, dann veraenderst du einfach chinesische Zeichen in die Sprache, die nach Durchfuehren des weekdays() bei dir gezeigt wird. Auf Zeile 184 gibt es filter(weekdays == "周一"). "周一" bedeutet "Monday". Auf Zeile 307 gibt es filter(weekdays == "周日"). "周日" bedeutet "Sonday".
+Am Zeile 184 und 307 gibt es chinesische Zeichen, denn wenn ich weekdays() durchfuehre, gibt es nur chinesische Zeichen bei mir. Wenn chinesische Zeichen bei dir nicht gelesen werden koennen, dann veraenderst du einfach chinesische Zeichen in die Sprache, die nach Durchfuehren des weekdays() bei dir gezeigt wird. Auf Zeile 184 gibt es filter(weekdays == "周一"). "周一" bedeutet "Monday". Auf Zeile 307 gibt es filter(weekdays == "周日"). "周日" bedeutet "Sunday".
 
 orignal Datensatz
 ```{r}
