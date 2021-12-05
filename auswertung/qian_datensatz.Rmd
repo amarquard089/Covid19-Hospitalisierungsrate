@@ -181,7 +181,7 @@ hospitalisierung_clean <-
   mutate(Berichtsdatum = as.Date(Datum)) %>%
   mutate(Weekday = as.factor(weekdays(Berichtsdatum, abbreviate = TRUE))) %>%
   filter(!(Bundesland == "Bundesgebiet" | Altersgruppe == "00+")) %>%
-  filter(Weekday == "周一") %>% # "周一" bedeutet "Montag"
+  filter(Weekday == "Montag") %>% # "周一" bedeutet "Montag"
   mutate(Berichtsdatum = Berichtsdatum - 1) %>%
   arrange(-desc(Berichtsdatum)) %>%
   mutate(Kalenderjahr = format(Berichtsdatum, format = "%Y"),
@@ -304,7 +304,7 @@ impfung_clean_sum_new <-
   mutate(Impfdatum = as.Date(add_Date)) %>%
   arrange(-desc(Impfdatum)) %>%
   mutate(Weekday = as.factor(weekdays(Impfdatum, abbreviate = TRUE))) %>%
-  filter(Weekday == "周日") %>% # ”周日“ bedeutet "Sonntag"
+  filter(Weekday == "Sonntag") %>% # ”周日“ bedeutet "Sonntag"
   mutate(Kalenderjahr = format(Impfdatum, format = "%Y"),
          Kalenderwoche = strftime(Impfdatum, format = "%V"))
 
