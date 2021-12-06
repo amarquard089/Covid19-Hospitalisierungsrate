@@ -1,0 +1,60 @@
+---
+title: "Phu_Auswertung"
+author: 'Phu Nguyen (Matrikelnr: 11904670)'
+date: "12/6/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r Hospitalisierung mit Jahreszeit}
+sum_hosp <- aggregate(fin_datensatz[, 6], list(fin_datensatz$Jahrwoche), sum)
+sum_hosp <- as_tibble(sum_hosp)
+colnames(sum_hosp) <- c("Jahrwoche", "Hospitalisierung")
+
+sum_hosp <- sum_hosp %>%
+  mutate(WochenID = setdiff(1:100, c(2,3))) %>%
+  mutate(Jahreszeit = ifelse(WochenID <= 4, "Winter",
+                             ifelse(WochenID <= 17, "Fruehling",
+                                    ifelse(WochenID <= 30, "Sommer",
+                                           ifelse(WochenID <= 43, "Herbst",
+                                                  ifelse(WochenID <= 56, "Winter",
+                                                         ifelse(WochenID <= 69, "Fruehling",
+                                                                ifelse(WochenID <= 82, "Sommer",
+                                                                       ifelse(WochenID <= 95, "Herbst",
+                                                                              "Winter"))))))))) %>%
+  mutate(Jahreszeit = factor(Jahreszeit, levels = c("Fruehling", "Sommer", "Herbst", "Winter")))
+
+ggplot(data = sum_hosp) +
+  geom_col(aes(x = Jahrwoche, y = Hospitalisierung, fill = Jahreszeit)) +
+  geom_vline(xintercept = "2020-04") +
+  geom_vline(xintercept = "2020-17") +
+  geom_vline(xintercept = "2020-30") +
+  geom_vline(xintercept = "2020-43") +
+  geom_vline(xintercept = "2021-04") +
+  geom_vline(xintercept = "2021-17") +
+  geom_vline(xintercept = "2021-30") +
+  geom_vline(xintercept = "2021-43") +
+  theme_minimal() +
+  scale_fill_manual(values = c("#4daf4a","#ffd92f", "#d95f02", "#377eb8"))
+
+```
+
+
+```{r Hospitalisierung nach Altersgruppen}
+hosp_alter <- fin_datensatz %>%
+  select(Jahrwoche, Altersgruppe, Hospitalisierung) %>%
+  group_by(Jahrwoche, Altersgruppe) %>%
+  summarise(sum(Hospitalisierung))
+
+ggplot(hosp_alter) +
+  geom_line(aes(x = Jahrwoche, y = `sum(Hospitalisierung)`, 
+                group = Altersgruppe, color = Altersgruppe), size = 1) +
+  gghighlight() +
+  theme_minimal() +
+  ylab("Hospitalisierung")
+```
+
