@@ -7,6 +7,10 @@ output: pdf_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+Packages <- c("tidyverse", "productplots", "gganimate", "av",
+              "gifski", "gghighlight", "sf", "ggpubr", "data.table",
+              "maps", "viridis", "ggrepel", "zoo")
+lapply(Packages, library, character.only = TRUE)
 library(tidyverse)
 ```
 
