@@ -7,11 +7,8 @@ output: pdf_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-Packages <- c("tidyverse", "productplots", "gganimate", "av",
-              "gifski", "gghighlight", "sf", "ggpubr", "data.table",
-              "maps", "viridis", "ggrepel", "zoo")
-lapply(Packages, library, character.only = TRUE)
-library(tidyverse)
+packages <- c("tidyverse", "gghighlight")
+lapply(packages, library, character.only = TRUE)
 ```
 
 
@@ -25,13 +22,14 @@ sum_hosp <- fin_datensatz %>%
 ggplot(data = sum_hosp) +
   geom_col(aes(x = Jahrwoche, y = `sum(Hospitalisierung)`, fill = Jahreszeit)) +
   geom_vline(xintercept = "2020-04") +
-  geom_vline(xintercept = "2020-17") +
-  geom_vline(xintercept = "2020-30") +
-  geom_vline(xintercept = "2020-43") +
+  geom_vline(xintercept = "2020-18") +
+  geom_vline(xintercept = "2020-31") +
+  geom_vline(xintercept = "2020-44") +
   geom_vline(xintercept = "2021-04") +
   geom_vline(xintercept = "2021-17") +
   geom_vline(xintercept = "2021-30") +
   geom_vline(xintercept = "2021-43") +
+  scale_x_discrete(breaks = sum_hosp$Jahrwoche[c(2, seq(16, 94, 13))]) +
   theme_minimal() +
   scale_fill_manual(values = c("#4daf4a","#ffd92f", "#d95f02", "#377eb8")) +
   ylab("Hospitalisierung")
