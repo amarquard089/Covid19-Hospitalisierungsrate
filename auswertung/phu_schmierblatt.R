@@ -165,6 +165,19 @@ impfquote1 %>%
   scale_fill_brewer(type = "seq", palette = "YlGnBu", direction = -1) +
   facet_wrap(~ Jahrwoche)
 
+impfquote2 <- impfquote %>%
+  filter(Altersgruppe == "60+")
+
+impfquote2 %>%
+  pivot_longer(!c(Jahrwoche,Altersgruppe), names_to = "percentID", values_to = "anteil") %>%
+  ggplot(aes(x = "", y = anteil, fill = percentID)) +
+  geom_bar(stat = "identity", width = 1) +
+  coord_polar("y", start = 0) +
+  theme_minimal() +
+  theme_void() +
+  scale_fill_brewer(type = "seq", palette = "YlGnBu", direction = -1) +
+  facet_wrap(~ Jahrwoche)
+
 ?transition_states
 ggplot(impfquote1) +
   coord_polar(aes(x = "", y = ))
