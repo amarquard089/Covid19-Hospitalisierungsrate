@@ -52,3 +52,43 @@ ggplot(hosp_alter) +
   ylab("Hospitalisierung")
 ```
 
+```{r Entwicklung Impfquote nach Altersgruppen}
+impfquote <- fin_datensatz %>%
+  select(Jahrwoche, Impfquote, Altersgruppe, Kalenderwoche) %>%
+  group_by(Jahrwoche, Altersgruppe, Kalenderwoche) %>%
+  summarise(mean(Impfquote)) %>%
+  mutate(Nicht_geimpft = (1 - `mean(Impfquote)`))
+
+impfquote_jung <- impfquote %>%
+  filter(Altersgruppe == "00-59") %>%
+  mutate(Kalenderwoche = as.integer(Kalenderwoche))
+colnames(impfquote_jung)[4] <- "Geimpft"
+
+impfquote_jung %>%
+  pivot_longer(!c(Jahrwoche, Altersgruppe, Kalenderwoche), names_to = "Impfstatus", values_to = "Anteil") %>%
+  ggplot(aes(x = "", y = Anteil, fill = Impfstatus)) +
+  geom_bar(stat = "identity", width = 1) +
+  coord_polar("y", start = 0) +
+  theme_minimal() +
+  theme_void() +
+  scale_fill_brewer(type = "seq", palette = "YlGnBu", direction = -1, labels = c("Geimpft", "Nicht geimpft")) +
+  labs(title = "Entwicklung Impfquote bei Jugendlichen") +
+  facet_wrap(~ Jahrwoche)
+
+impfquote_alt <- impfquote %>%
+  filter(Altersgruppe == "60+") %>%
+  mutate(Kalenderwoche = as.integer(Kalenderwoche))
+colnames(impfquote_alt)[4] <- "Geimpft"
+
+impfquote_alt %>%
+  pivot_longer(!c(Jahrwoche, Altersgruppe, Kalenderwoche), names_to = "Impfstatus", values_to = "Anteil") %>%
+  ggplot(aes(x = "", y = Anteil, fill = Impfstatus)) +
+  geom_bar(stat = "identity", width = 1) +
+  coord_polar("y", start = 0) +
+  theme_minimal() +
+  theme_void() +
+  scale_fill_brewer(type = "seq", palette = "YlGnBu", direction = -1, labels = c("Geimpft", "Nicht geimpft")) +
+  labs(title = "Entwicklung Impfquote bei Alten") +
+  facet_wrap(~ Jahrwoche)
+```
+
