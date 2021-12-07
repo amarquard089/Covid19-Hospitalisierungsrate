@@ -115,3 +115,67 @@ ggplot(test2) +
   gghighlight() +
   theme_minimal()
   
+saveRDS(fin_datensatz, file = "fin_datensatz.Rds")
+
+
+install.packages("gganimate")
+
+# b <- ggplot(einkommen_year2) +
+#   aes(x = Region, y = n, fill = Gesellschaftsklasse) +
+#   geom_col(position = "dodge") +
+#   scale_fill_brewer(type = "seq", palette = "YlGnBu", direction = -1) +
+#   #facet_wrap(~ travel_year) +
+#   theme_minimal(base_size = 12) +
+#   theme(legend.position = "right") +
+#   ylab("Anzahl Reisen") +
+#   transition_states(travel_year, 1, 1) +
+#   ggtitle("{closest_state}")
+
+# animate(b, duration = 25, height = 10, width = 17, units = "in", res = 170)
+
+
+impfquote <- fin_datensatz %>%
+  select(Jahrwoche, Impfquote, Altersgruppe) %>%
+  group_by(Jahrwoche, Altersgruppe) %>%
+  summarise(mean(Impfquote)) %>%
+  mutate(Nicht_geimpft = (1 - `mean(Impfquote)`))
+
+
+impfquote1 <- impfquote %>%
+  filter(Altersgruppe == "00-59")
+
+colnames(impfquote1)[3] <- "Geimpft"
+
+impfquote1 %>%
+  pivot_longer(!c(Jahrwoche,Altersgruppe), names_to = "percentID", values_to = "anteil") %>%
+  filter(Jahrwoche == "2021-43") %>%
+  ggplot(aes(x = "", y = anteil, fill = percentID)) +
+  geom_bar(stat = "identity", width = 1) +
+  coord_polar("y", start = 0) +
+  theme_void() +
+  scale_fill_brewer(type = "seq", palette = "YlGnBu", direction = -1)
+
+impfquote1 %>%
+  pivot_longer(!c(Jahrwoche,Altersgruppe), names_to = "percentID", values_to = "anteil") %>%
+  ggplot(aes(x = "", y = anteil, fill = percentID)) +
+  geom_bar(stat = "identity", width = 1) +
+  coord_polar("y", start = 0) +
+  theme_minimal() +
+  theme_void() +
+  scale_fill_brewer(type = "seq", palette = "YlGnBu", direction = -1) +
+  facet_wrap(~ Jahrwoche)
+
+?transition_states
+ggplot(impfquote1) +
+  coord_polar(aes(x = "", y = ))
+
+tail(impfquote1)
+impfquote
+
+?pie
+
+install.packages("av")
+a <- c(0.587, (1 - 0.587))
+library(gganimate)       
+a
+pie3D(a)
