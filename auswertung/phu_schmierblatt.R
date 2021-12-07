@@ -135,16 +135,19 @@ install.packages("gganimate")
 
 
 impfquote <- fin_datensatz %>%
-  select(Jahrwoche, Impfquote, Altersgruppe) %>%
-  group_by(Jahrwoche, Altersgruppe) %>%
+  select(Jahrwoche, Impfquote, Altersgruppe, Kalenderwoche) %>%
+  group_by(Jahrwoche, Altersgruppe, Kalenderwoche) %>%
   summarise(mean(Impfquote)) %>%
-  mutate(Nicht_geimpft = (1 - `mean(Impfquote)`))
+  mutate(Nicht_geimpft = (1 - `mean(Impfquote)`)) 
 
+impfquote1
 
 impfquote1 <- impfquote %>%
-  filter(Altersgruppe == "00-59")
+  filter(Altersgruppe == "00-59") %>%
+  mutate(Kalenderwoche = as.integer(Kalenderwoche))
 
-colnames(impfquote1)[3] <- "Geimpft"
+
+colnames(impfquote1)[4] <- "Geimpft"
 
 impfquote1 %>%
   pivot_longer(!c(Jahrwoche,Altersgruppe), names_to = "percentID", values_to = "anteil") %>%
@@ -156,14 +159,15 @@ impfquote1 %>%
   scale_fill_brewer(type = "seq", palette = "YlGnBu", direction = -1)
 
 impfquote1 %>%
-  pivot_longer(!c(Jahrwoche,Altersgruppe), names_to = "percentID", values_to = "anteil") %>%
+  pivot_longer(!c(Jahrwoche,Altersgruppe, Kalenderwoche), names_to = "percentID", values_to = "anteil") %>%
   ggplot(aes(x = "", y = anteil, fill = percentID)) +
   geom_bar(stat = "identity", width = 1) +
   coord_polar("y", start = 0) +
   theme_minimal() +
   theme_void() +
   scale_fill_brewer(type = "seq", palette = "YlGnBu", direction = -1) +
-  facet_wrap(~ Jahrwoche)
+  facet_wrap(~ Jahrwoche) +
+  transition_time(Kalenderwoche)
 
 impfquote2 <- impfquote %>%
   filter(Altersgruppe == "60+")
@@ -192,3 +196,20 @@ a <- c(0.587, (1 - 0.587))
 library(gganimate)       
 a
 pie3D(a)
+
+hosp_alter <- fin_datensatz %>%
+  select(Jahrwoche, Altersgruppe, Hospitalisierung, Kalenderwoche) %>%
+  group_by(Jahrwoche, Altersgruppe, Kalenderwoche) %>%
+  summarise(sum(Hospitalisierung)) %>%
+  mutate(Kalenderwoche = as.integer(Kalenderwoche))
+
+ggplot(hosp_alter) +
+  geom_line(aes(x = Jahrwoche, y = `sum(Hospitalisierung)`, 
+                group = Altersgruppe, color = Altersgruppe), size = 1) +
+  scale_x_discrete(breaks = sum_hosp$Jahrwoche[c(seq(1, 98, 20), 98)]) +
+  theme_minimal() +
+  ylab("Hospitalisierung") +
+  transition_reveal(Kalenderwoche) +
+  labs(title = "Year: {frame_time}")
+
+devtools::install_github('thomasp85/gganimate')
