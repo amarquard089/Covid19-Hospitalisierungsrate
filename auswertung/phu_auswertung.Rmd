@@ -7,29 +7,16 @@ output: pdf_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
 ```
 
 
 ```{r Hospitalisierung mit Jahreszeit}
 sum_hosp <- fin_datensatz %>%
-  select(Jahrwoche, Hospitalisierung) %>%
-  group_by(Jahrwoche) %>%
-  summarise(sum(Hospitalisierung))
-
-sum_hosp <- sum_hosp %>%
-  mutate(WochenID = setdiff(1:100, c(2,3))) %>%
-  mutate(Jahreszeit = ifelse(WochenID <= 4, "Winter",
-                             ifelse(WochenID <= 17, "Fruehling",
-                                    ifelse(WochenID <= 30, "Sommer",
-                                           ifelse(WochenID <= 43, "Herbst",
-                                                  ifelse(WochenID <= 56, "Winter",
-                                                         ifelse(WochenID <= 69, "Fruehling",
-                                                                ifelse(WochenID <= 82, "Sommer",
-                                                                       ifelse(WochenID <= 95, "Herbst",
-                                                                              "Winter"))))))))) %>%
+  select(Jahrwoche, Hospitalisierung, Jahreszeit) %>%
+  group_by(Jahrwoche, Jahreszeit) %>%
+  summarise(sum(Hospitalisierung)) %>%
   mutate(Jahreszeit = factor(Jahreszeit, levels = c("Fruehling", "Sommer", "Herbst", "Winter")))
-
-sum_hosp
 
 ggplot(data = sum_hosp) +
   geom_col(aes(x = Jahrwoche, y = `sum(Hospitalisierung)`, fill = Jahreszeit)) +
