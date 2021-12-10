@@ -29,7 +29,7 @@ covid_regelungen2020_Bayern <- covid_regelungen2020_Bayern %>%
   mutate(Jahr = 2020, Bundesland = "Bayern", Drei_G = 0, Zwei_G = 0)
 
 x <- 1  
-    while (x <= nrow(covid_regelungen2020_Bayern)) {
+while (x <= nrow(covid_regelungen2020_Bayern)) {
     covid_regelungen2020_Bayern$KW[x] <- x
     x <- x + 1
   }
@@ -278,6 +278,7 @@ covid_regelungen_Brandenburg <- rbind(covid_regelungen2020_Brandenburg, covid_re
 
 
 ```
+
 ```{r Kompletter Covid 19 Regelungen Datensatz}
 
 Covid19_Regelungen <- rbind(covid_regelungen_Bayern, covid_regelungen_Baden_Wuerttemberg, covid_regelungen_Berlin, covid_regelungen_Brandenburg)

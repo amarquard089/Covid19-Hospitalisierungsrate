@@ -47,6 +47,7 @@ head(rki_impfung_impfquote_aktuell)
 
 Sieben_Tage_Inzidenz_Hosp_Alter <- readRDS("../daten/Sieben_Tage_Inzidenz_Hosp_Alter.Rds")
 
+
 ## LMU
 
 # nowcasting symptome pro tag 
@@ -62,6 +63,12 @@ head(Nowcasting_lmu_hosp)
 # bevölkerungsdichte deutschland Stand 31.12.2020
 b_dichte <- readRDS('../daten/bevoelkerungsdichte.Rds')
 head(b_dichte)
+
+
+## KIT
+
+# bevoelkerung
+kit_bevoelkerung <- readRDS('../daten/kitbevoelkerung.Rds')
 
 ```
 
@@ -160,7 +167,8 @@ add.Seasons <- function(df, date.col.as.string, useWeeks = FALSE, sep = '-') {
               '9' = 'Autumn',
               '10' = 'Autumn',
               '11' = 'Autumn',
-              '12' = 'Winter'
+              '12' = 'Winter',
+             '13' = 'Winter' #in case of 53 weeks
              )
       }
     )
@@ -403,7 +411,7 @@ p1 <- ggplot() +
             alpha = 0.3) +
   geom_line(data = rki_impfung_nach_bl_sum2, 
             aes(x = Impfdatum, y = mean_perc),
-            size = 2,
+            size = 1,
             alpha = 0.9)
   
 p2 <- ggplot() +
@@ -412,7 +420,7 @@ p2 <- ggplot() +
             alpha = 0.3) + 
   geom_line(data = rki_impfung_nach_bl_sum2, 
             aes(x = Impfdatum, y = mean_total), 
-            size = 2,
+            size = 1,
             alpha = 0.9)
 
 ggpubr::ggarrange(p1, p2, ncol = 2)
@@ -420,18 +428,592 @@ ggpubr::ggarrange(p1, p2, ncol = 2)
 # lege Inzidenzen drüber
 
 
-
-
-
   
 # Analysiere welcher Impfstoff wie häufig verteilt wurde
+
+rki_impfung_nach_bl$Impfstoff <- as.factor(rki_impfung_nach_bl$Impfstoff)
+rki_impfung_nach_bl$Impfdatum <- as.Date(rki_impfung_nach_bl$Impfdatum)
+
+rki_impfung_nach_bl_impfstoff <- rki_impfung_nach_bl %>% 
+  group_by(Impfdatum, bundesland_fact, Impfstoff) %>%
+  mutate(sum_by_impfstoff = sum(Anzahl))
+
+ggplot() + 
+  geom_col(data = rki_impfung_nach_bl_impfstoff) + 
+  aes(x = Impfdatum, y = sum_by_impfstoff, fill = Impfstoff) +
+  #facet_wrap(~Impfstoff) +
+  scale_x_date(breaks = "2 month") +
+  geom_line(data = nowcasting_rki,aes(x = Datum, y = PS_COVID_Faelle, fill = "")) +
+  scale_y_continuous(labels = scales::comma, breaks = c(40000, 100000, 500000, 1000000, 3000000))
+
+
+rki_impfung_nach_bl_total <- rki_impfung_nach_bl %>% group_by(Impfdatum) %>%
+  mutate(sum_impfungen = sum(Anzahl)) %>% summarise(unique(sum_impfungen)) %>% 
+  transmute(Datum = Impfdatum, sum_impfungen = `unique(sum_impfungen)`)
+
+concat_nowcast_and_impfungen <- left_join(rki_impfung_nach_bl_total, nowcasting_rki, by = "Datum")
+
+# plot(concat_nowcast_and_impfungen)
+
+# Lege hospitalisierte Werte und positive werte zusammen in einen Plot um einen 
+# Lag bzgl der Hospitalisierung zu bestimmen
+
+inzidenz_hospitalisiert
+inzidenz_symptomatisch
+
+# Inzidenzen sind pro 100.000 Einwohner
+# Ausgehend von 83.000.000 Millionen Einwohnern in Deutschland (Stand 31.12.2020)
+# können die Inzidenzen also mit ca. 830 multipliziert werden
+
+inzidenz_multiplikator <- sum(b_dichte$bevoelkerung)/100000
+
+# genau mit 831.5503
+
+names(inzidenz_hospitalisiert) <- c("Meldewoche", "UI12-17", "VI12-17", "UI18-59", "VI18-59", "UI60+", "VI60+", "Datum")
+names(inzidenz_symptomatisch) <- c("Meldewoche", "UI12-17", "VI12-17", "UI18-59", "VI18-59", "UI60+", "VI60+", "Datum")
+
+inzidenz_hosp_und_sympt <- inzidenz_hospitalisiert %>% 
+  left_join(inzidenz_symptomatisch, by = "Meldewoche") %>%
+  select(-Datum.y) %>%
+  group_by(Datum.x) %>%
+  mutate(Datum = as.Date(Datum.x)) %>%
+  mutate(sum_hosp = `UI12-17.x` +
+          `VI12-17.x` +
+          `UI18-59.x` +
+          `VI18-59.x` +
+          `UI60+.x` +
+          `VI60+.x`,
+         sum_inz = `UI12-17.y` +
+          `VI12-17.y` +
+          `UI18-59.y` +
+          `VI18-59.y` +
+          `UI60+.y` +
+          `VI60+.y`)
+
+ggplot(inzidenz_hosp_und_sympt) + 
+  geom_line(aes(x = Datum, y = sum_inz), col = "blue") +
+  geom_line(aes(x = Datum, y = sum_hosp), col = "red")
+
+
+
+```
+
+```{r test}
+
+rki_impfung_nach_bl
+
+b_dichte
+
+divi_tagesreport
+
+rki_impfung_nach_bl_bDichte <- rki_impfung_nach_bl %>% 
+  mutate(date = Impfdatum) %>%
+  left_join(divi_tagesreport, by = c("date", "bundesland_fact")) %>%
+  mutate(bundesland = bundesland_fact) %>%
+  left_join(b_dichte, by = "bundesland") %>%
+  select(date, bundesland, Impfstoff, Anzahl, faelle_covid_aktuell, 
+         faelle_covid_aktuell_invasiv_beatmet, betten_frei, 
+         betten_belegt, betten_belegt_nur_erwachsen, betten_frei_nur_erwachsen.,
+         bevoelkerung, flaeche_qkm, b_dichte)
+  
+rki_impfung_nach_bl_bDichte_test <- rki_impfung_nach_bl_bDichte %>% 
+  group_by(date, bundesland) %>% mutate(sum_faelle = sum(faelle_covid_aktuell)) %>%
+  summarise(unique(sum_faelle))
+#plot(rki_impfung_nach_bl_bDichte)
+
+model <- lm(`unique(sum_faelle)` ~ bundesland, data = rki_impfung_nach_bl_bDichte_test)
+summary(model)
+plot(effects::allEffects(model))
+
+
+```
+## Erstellung des Datensatzes
+
+Für den Datensatz haben wir uns im Team auf folgende Darstellung
+verständigt
+KW | Nowcasting1 | Nowcasting2 | Alter | Bundesland | Geimpft | Geschlecht |
+Jahreszeit | Regeln | Hospitalisierung
+
+Dabei haben die Spalten folgende Bedeutung
+KW: Kalenderwoche im Format KW-YYYY
+Nowcasting1: 
+
+Ich betrachte im folgenden die Datensätze des LGL und der LMU für Bayern
+
+```{r erstellunge des Datensatzes für Bayern}
+data_lgl1 <- readRDS("~/R/Covid19-Hospitalisierungsrate/Yegi 9.11/data_lgl1.rds")
+head(data_lgl1)
+
+# Lgl hat die Altersgruppen (-Inf, 17], (17, 59], (59, Inf)
+
+levels(data_lgl1$Altersgruppe) <- c("(-Inf, 59]","(-Inf, 59]", "(59, Inf)")
+
+data_lgl1 <- data_lgl1 %>% select(-MeldeLandkreis) %>%
+  group_by(Meldedatum, Altersgruppe) %>% 
+  mutate(Meldedatum = as.Date(Meldedatum)) %>%
+  summarise(sum_hosp = sum(Hospitalisierung))
+
+ggplot(data_lgl1)  +
+  geom_line(aes(x = Meldedatum, y = sum_hosp, col = Altersgruppe)) + 
+  xlab("Meldedatum") + ylab("Anzahl Hospitalisierung") +
+  labs(title = "Anzahl Hospitalisierte Personen nach Gruppen pro Tag") + theme_minimal()
+
+# Nach Woche
+
+ggplot(data_lgl1) + aes(x = lubridate::floor_date(Meldedatum, "week"), y = sum_hosp, col = Altersgruppe) +
+  stat_summary(fun=sum,  geom="line") +
+  xlab("Meldewoche") + ylab("Anzahl Hospitalisierung") +
+  labs(title = "Anzahl Hospitalisierte Personen nach Gruppen pro Woche") + 
+  theme_minimal()
+
+# Sieht wesentlich besser aus, ergänze KW zu datensatz
+data_lgl1$calendarweek <- paste(strftime(data_lgl1$Meldedatum, format = '%Y'), 
+                                        strftime(data_lgl1$Meldedatum, format = '%V'), 
+                                     sep = '-')
+# Beim Jahresübergang kommt es zu einem Bug. Wird hier manuell resolved
+data_lgl1[which(data_lgl1$calendarweek == "2021-53"),]$calendarweek <- 
+  c("2020-53", "2020-53" ,"2020-53" ,"2020-53", "2020-53", "2020-53")
+
+
+data_lgl1 <- data_lgl1 %>% ungroup(Meldedatum) %>%
+  group_by(calendarweek, Altersgruppe) %>% 
+  summarise(sum_hosp_week = sum(sum_hosp))
+
+# Wir haben nun einen Datensatz mit den Hospitalisierungen pro Woche, unterteilt
+# in die beiden Altersgruppen -Inf,59 | 60, Inf
+# in Bayern
+# Ergänze nun Inzidenzwerte und ermittle Anteil geimpft/ungeimpft
+
+# Fälle in Bayern nach Alter
+# Quelle: https://survstat.rki.de/Content/Query/Create.aspx
+bayernFaelle2020_m <- readr::read_delim("../bayernFaelle2020_m.csv", 
+    delim = ";", escape_double = FALSE, trim_ws = TRUE)
+
+bayernFaelle2020_w <- readr::read_delim("../bayernFaelle2020_w.csv", 
+    delim = ";", escape_double = FALSE, trim_ws = TRUE)
+
+bayernFaelle2020_d <- readr::read_delim("../bayernFaelle2020_d.csv", 
+    delim = ";", escape_double = FALSE, trim_ws = TRUE)
+
+bayernFaelle2021_m <- readr::read_delim("../bayernFaelle2021_m.csv", 
+    delim = ";", escape_double = FALSE, trim_ws = TRUE)
+
+bayernFaelle2021_w <- readr::read_delim("../bayernFaelle2021_w.csv", 
+    delim = ";", escape_double = FALSE, trim_ws = TRUE)
+
+bayernFaelle2021_d <- readr::read_delim("../bayernFaelle2021_d.csv", 
+    delim = ";", escape_double = FALSE, trim_ws = TRUE)
+
+bayernFaelle2020_m$Geschlecht <- "m"
+bayernFaelle2020_w$Geschlecht <- "w"
+bayernFaelle2020_d$Geschlecht <- "d"
+bayernFaelle2021_m$Geschlecht <- "m"
+bayernFaelle2021_w$Geschlecht <- "w"
+bayernFaelle2021_d$Geschlecht <- "d"
+
+bayernFaelle2020 <- union(bayernFaelle2020_m, bayernFaelle2020_w)
+bayernFaelle2020 <- union(bayernFaelle2020, bayernFaelle2020_d)
+
+bayernFaelle2020 <- bayernFaelle2020 %>% 
+  mutate(Meldewoche = formatC(Meldewoche, width = 2, flag = "0")) %>%
+  mutate(Meldewoche = as.factor(paste("2020", Meldewoche, sep = "-"))) %>%
+  arrange(Meldewoche)
+
+bayernFaelle2021 <- union(bayernFaelle2021_m, bayernFaelle2021_w)
+bayernFaelle2021 <- union(bayernFaelle2021, bayernFaelle2021_d)
+
+bayernFaelle2021 <- bayernFaelle2021 %>% 
+  mutate(Meldewoche = formatC(Meldewoche, width = 2, flag = "0")) %>%
+  mutate(Meldewoche = as.factor(paste("2021", Meldewoche, sep = "-"))) %>%
+  arrange(Meldewoche)
+
+bayernFaelle <- union(bayernFaelle2020, bayernFaelle2021)
+
+bayernFaelle <- bayernFaelle %>%
+  pivot_longer(cols = -c(Meldewoche, Geschlecht), names_to = "Altersgruppe") %>%
+  filter(Altersgruppe != "Unbekannt") %>%
+  mutate(Altersgruppe = as.factor(Altersgruppe),
+         Faelle = value)
+
+levels(bayernFaelle$Altersgruppe) <- c(rep("(-Inf, 59]", 7), rep("(59, Inf)",3))
+
+bayernFaelle <- bayernFaelle %>%
+  group_by(Meldewoche, Altersgruppe, Geschlecht) %>%
+  summarise(sum_Faelle = sum(Faelle, na.rm = T)) %>%
+  arrange(Meldewoche)
+
+data_lgl1 <- data_lgl1 %>% mutate(Meldewoche = calendarweek) %>% 
+  group_by(Meldewoche) %>% select(-calendarweek)
+
+data_lgl1
+bayernFaelle
+
+final_bayern <- left_join(data_lgl1, bayernFaelle)
+
+final_bayern$Geschlecht <- as.factor(final_bayern$Geschlecht)
+
+final_bayern_mit_Jahr_und_KW <- final_bayern %>% 
+  mutate(KW = str_split(Meldewoche, "-")[[1]][[2]],
+         year = str_split(Meldewoche, "-")[[1]][[1]]) %>%
+  mutate(KW = as.factor(KW), year = as.factor(year))
+
+# Ein bisschen rumspielen
+
+plot(final_bayern)
+final_bayern$log_Faelle <- log(final_bayern$sum_Faelle + 1)
+plot(log(final_bayern$sum_Faelle), final_bayern$sum_hosp_week)
+test_lm <- lm(sum_hosp_week ~ Altersgruppe + log(sum_Faelle + 1) + KW + year, data = final_bayern_mit_Jahr_und_KW)
+summary(test_lm)
+plot(test_lm)
+
+y_pred <- predict(test_lm, final_bayern_mit_Jahr_und_KW)
+
+test_df <- data.frame(final_bayern_mit_Jahr_und_KW, y_pred = y_pred)
+
+ggplot(test_df) +
+  geom_line(aes(x = Meldewoche, y = sum_hosp_week, group = Altersgruppe, col = Altersgruppe), col = "blue") +
+  geom_line(aes(x = Meldewoche, y = y_pred, group = Altersgruppe, col = Altersgruppe), col = "red") +
+  facet_wrap(~Geschlecht) +
+  scale_x_discrete(breaks = c("2020-10", "2020-40", "2021-10", "2021-40"))
+
+# Geschlecht hat keinen Einfluss, entferne Variable
+
+final_bayern_wo_Geschl <- final_bayern_mit_Jahr_und_KW %>%
+  select(-Geschlecht) %>%
+  group_by(Meldewoche, Altersgruppe) %>%
+  summarise(sum_faelle_hosp = sum(sum_hosp_week),
+         sum_faelle = sum(sum_Faelle)) %>%
+  mutate(KW = str_split(Meldewoche, "-")[[1]][[2]],
+         year = str_split(Meldewoche, "-")[[1]][[1]])
+
+# ergänze Season
+
+final_bayern_wo_Geschl$KW <- as.numeric(final_bayern_wo_Geschl$KW)
+
+final_bayern_wo_Geschl$season <- add.Seasons(final_bayern_wo_Geschl, "KW", useWeeks = T)
+final_bayern_wo_Geschl$season <- as.factor(final_bayern_wo_Geschl$season)
+
+covid_regelungen_Bayern <- covid_regelungen_Bayern %>% 
+  mutate(year = Jahr)
+
+final_bayern_wo_Geschl <- final_bayern_wo_Geschl %>%
+  mutate(year = as.numeric(year),
+         KW = as.numeric(as.character(KW)))
+
+final_bayern_wo_Geschl_w_Regeln <- left_join(final_bayern_wo_Geschl, covid_regelungen_Bayern, by = c("KW", "year"))
+
+final_bayern_wo_Geschl_w_Regeln <- final_bayern_wo_Geschl_w_Regeln %>%
+  select(-c(Jahr, Bundesland,Zwei_G)) %>%
+  mutate(KW = as.factor(KW),
+         year = as.factor(year),
+         Medizinische_Maskenpflicht = as.factor(Medizinische_Maskenpflicht),
+
+FFP2_Maskenpflicht = as.factor(FFP2_Maskenpflicht),
+
+Lockdown = as.factor(Lockdown),
+
+Drei_G = as.factor(Drei_G))
+
+test_lm2 <- lm(log(sum_faelle_hosp + 1) ~ . - Meldewoche + log(sum_faelle + 1) - sum_faelle - KW, data = final_bayern_wo_Geschl)
+summary(test_lm2)
+ModelMetrics::rmse(test_lm2)
+# modelanpassung von 0.95 mit einem rmse von 0.3438
+
+
+test_lm3 <- lm(log(sum_faelle_hosp + 1) ~ . - Meldewoche + log(sum_faelle + 1) 
+               - sum_faelle - KW
+               + Altersgruppe:season,
+               data = final_bayern_wo_Geschl_w_Regeln[-c(178,179),])
+summary(test_lm3)
+plot(effects::allEffects(test_lm3))
+plot(test_lm3)
+anova(test_lm3)
+
+y_true <- log(final_bayern_wo_Geschl_w_Regeln$sum_faelle_hosp[-c(1,178,179)] + 1)
+y_pred <- predict(test_lm3, final_bayern_wo_Geschl_w_Regeln[-c(1,178,179),])
+ggplot(data.frame(y_true = exp(y_true), y_pred = exp(y_pred), 
+                  x = final_bayern_wo_Geschl_w_Regeln$Meldewoche[-c(1,178,179)], 
+                  ag = final_bayern_wo_Geschl_w_Regeln$Altersgruppe[-c(1,178,179)])) +
+  geom_line(aes(y = y_true, x = x, group = ag, col = "red")) +
+  geom_line(aes(y = y_pred, x = x, group = ag, col = "blue")) +
+  facet_wrap(~ag, scales = "free") +
+  scale_x_discrete(breaks = c("2020-20", "2020-50", "2021-20", "2021-35")) +
+  xlab("Meldewoche") + ylab("Hospitalisiert") + 
+  labs(title = "Prediction vs True Values of Hospitalization", 
+       subtitle = "By Age") +
+  scale_colour_manual(name = 'Values', 
+         values =c('blue'='blue','red'='red'), labels = c('Predicted','True')) +
+  theme_minimal() +
+  theme(text = element_text(size = 30))
+
+
+
+
+final_bayern_wo_Geschl$Meldewoche <- as.character(final_bayern_wo_Geschl$Meldewoche)
+# probiere nun mit train und test datensatz
+n = nrow(final_bayern_wo_Geschl_w_Regeln) * 0.75
+train_df <- final_bayern_wo_Geschl_w_Regeln[1:n, ]
+test_df <- final_bayern_wo_Geschl_w_Regeln[-(1:n), ]
+
+
+
+model <- lm(log(sum_faelle_hosp + 1) ~ . - Meldewoche + log(sum_faelle + 1) - sum_faelle - KW, data = train_df)
+summary(model)
+modelr::rmse(model, test_df)
+
+y_true_test <- test_df$sum_faelle_hosp[-c(nrow(test_df), nrow(test_df) - 1)]
+y_pred_test <- predict(test_lm3, test_df[-c(nrow(test_df),nrow(test_df)-1),])
+ggplot(data.frame(y_true = y_true_test, y_pred = exp(y_pred_test), 
+                  x = test_df$Meldewoche[-c(nrow(test_df), nrow(test_df) - 1)], 
+                  ag = test_df$Altersgruppe[-c(nrow(test_df), nrow(test_df) - 1)])) +
+  geom_line(aes(y = y_true, x = x, group = ag, col = "red")) +
+  geom_line(aes(y = y_pred, x = x, group = ag, col = "blue")) +
+  facet_wrap(~ag, scales = "free") +
+  xlab("Meldewoche") + ylab("Hospitalisiert") + 
+  labs(title = "Prediction vs True Values of Hospitalization", 
+       subtitle = "By Age") +
+  scale_colour_manual(name = 'Values', 
+         values =c('blue'='blue','red'='red'), labels = c('Predicted','True')) +
+  theme_minimal() +
+  theme(text = element_text(size = 30))
+
+# Mixed model
+library(nlme)
+mixed_model <- 
+  lme(log(sum_faelle_hosp + 1) ~ log(sum_faelle + 1) + season + Lockdown + 
+        Medizinische_Maskenpflicht + FFP2_Maskenpflicht + Drei_G,
+             random = (~1|Altersgruppe), 
+             data = final_bayern_wo_Geschl_w_Regeln)
+summary(mixed_model)
+
+y_pred_mixed <- predict(mixed_model, final_bayern_wo_Geschl_w_Regeln[-c(1,178,179),])
+
+ggplot(data.frame(y_true = exp(y_true), y_pred = exp(y_pred), y_pred_mixed = exp(y_pred_mixed), 
+                  x = final_bayern_wo_Geschl_w_Regeln$Meldewoche[-c(1,178,179)], 
+                  ag = final_bayern_wo_Geschl_w_Regeln$Altersgruppe[-c(1,178,179)])) +
+  geom_line(aes(y = y_true, x = x, group = ag, col = "black")) +
+  geom_line(aes(y = y_pred, x = x, group = ag, col = "blue")) +
+  geom_line(aes(y = y_pred_mixed, x = x, group = ag, col = "red")) +
+  facet_wrap(~ag, scales = "free") +
+  scale_x_discrete(breaks = c("2020-20", "2020-50", "2021-20", "2021-35")) +
+  xlab("Meldewoche") + ylab("Hospitalisiert") + 
+  labs(title = "Prediction vs True Values of Hospitalization", 
+       subtitle = "By Age") +
+  scale_colour_manual(name = 'Values', 
+         values =c('blue'='blue','black'='black', 'red' = 'red'), labels = c('Predicted_lm','True', 'Predicted_mixed')) +
+  theme_minimal() +
+  theme(text = element_text(size = 30))
+
+# Add lag
+final_bayern_wo_Geschl_w_Regeln_w_lag <- final_bayern_wo_Geschl_w_Regeln %>%
+  group_by(Altersgruppe) %>%
+  mutate(lag1_sum_faelle = lag(sum_faelle),
+         lag2_sum_faelle = lag(sum_faelle, 2),
+         lag3_sum_faelle = lag(sum_faelle, 3),
+         lag4_sum_faelle = lag(sum_faelle, 4)) %>%
+  na.omit()
+
+mixed_model2 <- 
+  lme(log(sum_faelle_hosp + 1) ~ log(sum_faelle + 1) + season + Lockdown + 
+        Medizinische_Maskenpflicht + FFP2_Maskenpflicht + Drei_G + lag1_sum_faelle,
+             random = (~1|Altersgruppe), 
+             data = final_bayern_wo_Geschl_w_Regeln_w_lag)
+summary(mixed_model2)
+
+y_true2 <- final_bayern_wo_Geschl_w_Regeln_w_lag$sum_faelle_hosp
+y_pred_mixed2 <- predict(mixed_model2, final_bayern_wo_Geschl_w_Regeln_w_lag)
+
+ggplot(data.frame(y_true = y_true2, y_pred_mixed = exp(y_pred_mixed2), 
+                  x = final_bayern_wo_Geschl_w_Regeln_w_lag$Meldewoche, 
+                  ag = final_bayern_wo_Geschl_w_Regeln_w_lag$Altersgruppe)) +
+  geom_line(aes(y = y_true, x = x, group = ag, col = "black")) +
+  geom_line(aes(y = y_pred_mixed, x = x, group = ag, col = "red")) +
+  facet_wrap(~ag, scales = "free") +
+  scale_x_discrete(breaks = c("2020-20", "2020-50", "2021-20", "2021-35")) +
+  xlab("Meldewoche") + ylab("Hospitalisiert") + 
+  labs(title = "Prediction vs True Values of Hospitalization", 
+       subtitle = "By Age") +
+  scale_colour_manual(name = 'Values', 
+         values =c('black'='black', 'red' = 'red'), labels = c('True', 'Predicted_mixed')) +
+  theme_minimal() +
+  theme(text = element_text(size = 30))
+
+# Daten über Fallzahlen pro Bundesland
+# Quelle: https://www.rki.de/DE/Content/InfAZ/N/Neuartiges_Coronavirus/Daten/Fallzahlen_Inzidenz_aktualisiert.html;jsessionid=2382C2C35512F7509CB25FC204869651.internet072?nn=2386228
+Fallzahlen_Inzidenz_aktualisiert <- readxl::read_excel("../Fallzahlen_Inzidenz_aktualisiert.xlsx", 
+    sheet = "BL_7-Tage-Fallzahl-aktualisiert", 
+    skip = 1)
+
+head(Fallzahlen_Inzidenz_aktualisiert)
+
+Fallzahlen_Inzidenz_aktualisiert <- 
+  data.frame(date = colnames(Fallzahlen_Inzidenz_aktualisiert),
+             t(Fallzahlen_Inzidenz_aktualisiert), 
+             row.names = seq_len(62))
+
+names(Fallzahlen_Inzidenz_aktualisiert) <- c("date", Fallzahlen_Inzidenz_aktualisiert[1,][-1])
+
+Fallzahlen_Inzidenz_aktualisiert <- Fallzahlen_Inzidenz_aktualisiert[-1,]
+head(Fallzahlen_Inzidenz_aktualisiert)
+
+# ergänze Kalenderwoche
+Fallzahlen_Inzidenz_aktualisiert$calendarweek <- 
+  as.factor(str_c(strftime(Fallzahlen_Inzidenz_aktualisiert$date, format = '%Y'), 
+                  strftime(Fallzahlen_Inzidenz_aktualisiert$date, format = '%V'), 
+                  sep = '_'))
+
 
 ```
 
 
 
+```{r ganz deutschland}
 
 
+# Fallzahlen nach Alter über ganz deutschland
+# Quelle: https://www.rki.de/DE/Content/InfAZ/N/Neuartiges_Coronavirus/Daten/Altersverteilung.html;jsessionid=2382C2C35512F7509CB25FC204869651.internet072?nn=2386228
+Altersverteilung <- readxl::read_excel("../Altersverteilung.xlsx", 
+    sheet = "Fallzahlen")
+head(Altersverteilung)
+
+Altersverteilung <- data.frame(calendarweek = names(Altersverteilung), t(Altersverteilung), row.names = seq_len(91))
+names(Altersverteilung) <- c("calendarweek", "Gesamt", "90+", "85 - 89", "80 - 84",
+                             "75 - 79", "70 - 74", "65 - 69", "60 - 64", "55 - 59",
+                             "50 - 54", "45 - 49", "40 - 44", "35 - 39", "30 - 34",
+                             "25 - 29", "20 - 24", "15 - 19", "10 - 14", "5 - 9",
+                             "0 - 4")
+Altersverteilung <- Altersverteilung[-1,]
+
+Altersverteilung <- Altersverteilung %>% 
+  pivot_longer(cols = -calendarweek, names_to = "Altersgruppe") %>%
+  filter(Altersgruppe != "Gesamt") %>% 
+  mutate(Altersgruppe = as.factor(Altersgruppe),
+         Faelle = value)
+
+levels(Altersverteilung$Altersgruppe) <- c(rep("(-Inf, 59]", 12), rep("(59, Inf)",7))
+
+Altersverteilung <- Altersverteilung %>% group_by(calendarweek, Altersgruppe) %>%
+  summarise(sum_Faelle = sum(as.numeric(Faelle)))
+
+
+```
+
+## Ohne Inzidenz / Covid-Fälle
+
+Hier soll versucht werden unabhg von der Inzidenz die Hosp. vorherzusagen
+
+```{r versuche ohne Inzidenz}
+
+# Aktueller Stand
+head(final_bayern_wo_Geschl_w_Regeln_w_lag)
+
+# Versuche hier ein lm ohne Inzidenz
+
+model_ohne_inz <- lm(log(sum_faelle_hosp) ~ Altersgruppe + Lockdown + season + year
+                     + log(lag1_sum_faelle) + log(lag2_sum_faelle) +
+                       log(lag3_sum_faelle) + log(lag4_sum_faelle), data = final_bayern_wo_Geschl_w_Regeln_w_lag)
+
+summary(model_ohne_inz)
+plot(effects::allEffects(model_ohne_inz))
+
+# R^2 von 0.91 und adj R^2 von 0.91
+ModelMetrics::rmse(log(final_bayern_wo_Geschl_w_Regeln_w_lag$sum_faelle_hosp),
+                   predict(model_ohne_inz, newdata = final_bayern_wo_Geschl_w_Regeln_w_lag))
+
+modelr::mse(model_ohne_inz, data = final_bayern_wo_Geschl_w_Regeln_w_lag)
+modelr::rmse(model_ohne_inz, data = final_bayern_wo_Geschl_w_Regeln_w_lag)
+# mse und rmse sind garnicht so schlecht, R^2 ist recht gut
+
+# datensatz geht bis KW 43. Teile datensatz in auf bis kw 40 und versuche 41-43 
+# vorherzusagen
+
+train_df <- final_bayern_wo_Geschl_w_Regeln_w_lag %>% filter(Meldewoche <= "2021-40")
+test_df <- final_bayern_wo_Geschl_w_Regeln_w_lag %>% filter(Meldewoche > "2021-40")
+
+head(train_df)
+head(test_df)
+
+model_ohne_inz_train <- lm(log(sum_faelle_hosp) ~ Altersgruppe + Lockdown + season + year
+                     + log(lag1_sum_faelle) + log(lag2_sum_faelle), data = train_df)
+
+y_true <- final_bayern_wo_Geschl_w_Regeln_w_lag %>% 
+  filter(Meldewoche > "2021-40") %>%
+  select(sum_faelle_hosp, KW)
+y_pred <- predict(model_ohne_inz_train, newdata = test_df, interval = "confidence")
+
+# vergleich
+
+ggplot(data.frame(y_true = y_true$sum_faelle_hosp, y_pred = y_pred[,1], 
+                  lwr = y_pred[,2], uper = y_pred[,3], 
+                  kw = as.numeric(as.character(y_true$KW)), Altersgruppe = y_true$Altersgruppe)) +
+  geom_line(aes(x = kw, y = exp(y_pred), group = Altersgruppe, col = "red")) +
+  geom_ribbon(aes(x = kw, y = exp(y_pred), ymin = exp(lwr), ymax = exp(uper)), alpha = 0.1) +
+  geom_line(aes(x = kw, y = y_true, group = Altersgruppe, col = "black")) +
+  geom_line(data = final_bayern_wo_Geschl_w_Regeln_w_lag[final_bayern_wo_Geschl_w_Regeln_w_lag$year == 2021 & final_bayern_wo_Geschl_w_Regeln_w_lag$Meldewoche <= "2021-41",], 
+            aes(x = as.numeric(as.character(KW)), y = sum_faelle_hosp, group = Altersgruppe), col = "black") +
+  geom_point(aes(x = 42, y = 449)) +
+  facet_wrap(~Altersgruppe) +
+  geom_vline(xintercept = 41, linetype="dotted") +
+  scale_colour_manual(name = 'Values', 
+         values =c('black'='black', 'red' = 'red'), labels = c('True', 'Predicted')) +
+  xlab("Kalenderwoche 2021") + ylab("Hospitalisierte Fälle") +
+  labs(title = "Hospitalisierte Fälle nach Altersgruppen") +
+  scale_x_continuous(breaks = c(1,10,20,30,41,43)) +
+  theme_minimal() +
+  theme(text = element_text(size = 20))
+  
+```
+
+```{r teste nun mit lasso}
+
+library(smurf)
+
+lm(log(sum_faelle_hosp) ~ Altersgruppe + Lockdown + season + year
+                     + log(lag1_sum_faelle) + log(lag2_sum_faelle) +
+                       log(lag3_sum_faelle) + log(lag4_sum_faelle), data = final_bayern_wo_Geschl_w_Regeln_w_lag)
+
+formula_grouped_lasso <- 
+  log(sum_faelle_hosp) ~ p(Altersgruppe, pen = "grouplasso", group = 1) +
+  p(Lockdown, pen = "grouplasso", group = 2) +
+  p(season, pen = "grouplasso", group = 3) +
+  p(year, pen = "grouplasso", group = 4) +
+  p(log(lag1_sum_faelle), pen = "lasso") +
+  p(log(lag2_sum_faelle), pen ="lasso") +
+  p(log(lag3_sum_faelle), pen ="lasso") +
+  p(log(lag4_sum_faelle), pen ="lasso")
+
+group_smurf <-
+  glmsmurf(
+    formula = formula_grouped_lasso,
+    family = gaussian(),
+    data = final_bayern_wo_Geschl_w_Regeln_w_lag,
+    pen.weights = "glm.stand",
+    lambda = "cv.mse"
+  )
+
+summary(group_smurf)
+
+y_pred_lasso<- predict_reest(object = group_smurf,
+                newdata = final_bayern_wo_Geschl_w_Regeln_w_lag[,-3],
+                type = "response")
+
+modelr::rmse(group_smurf, final_bayern_wo_Geschl_w_Regeln_w_lag)
+
+ggplot(data.frame(y_true = y_true2, y_pred_mixed = exp(y_pred_mixed2), 
+                  x = final_bayern_wo_Geschl_w_Regeln_w_lag$Meldewoche, 
+                  ag = final_bayern_wo_Geschl_w_Regeln_w_lag$Altersgruppe)) +
+  geom_line(aes(y = y_true, x = x, group = ag, col = "black")) +
+  geom_line(aes(y = y_pred_mixed, x = x, group = ag, col = "red")) +
+  facet_wrap(~ag, scales = "free") +
+  scale_x_discrete(breaks = c("2020-20", "2020-50", "2021-20", "2021-35")) +
+  xlab("Meldewoche") + ylab("Hospitalisiert") + 
+  labs(title = "Prediction vs True Values of Hospitalization", 
+       subtitle = "By Age") +
+  scale_colour_manual(name = 'Values', 
+         values =c('black'='black', 'red' = 'red'), labels = c('True', 'Predicted_mixed')) +
+  theme_minimal() +
+  theme(text = element_text(size = 30))
+```
 
 
 

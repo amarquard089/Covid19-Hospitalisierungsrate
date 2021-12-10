@@ -81,6 +81,7 @@ Alex
 
 ## Einteilung
 
+Qian
 
 ## Todo
 
@@ -93,6 +94,8 @@ Jeder stellt Modelle vor für
 - hospitalisierungsprediction
 - Datensatz: wie könnte der aussehen? (Was sind unsere kovariablen?)
 mit Quelle
+
+
 
 
 
