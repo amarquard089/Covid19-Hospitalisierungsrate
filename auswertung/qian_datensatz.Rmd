@@ -17,7 +17,7 @@ library(tidyverse)
 ```
 
 Man kann einfach alle Chunks durchfueheren und die finalen Datensatz in letzten Chunk finden:
-1. Zusammenfassung inzidenz nach Anmeldedatum, Hospitalisierung, impfquote und Lockdown: "inzidenznachAnmeldedatum_hosp_impf_lock"
+1. Zusammenfassung inzidenz nach Anmeldedatum, Hospitalisierung, impfquote und Lockdown: "fin_datensatz"
 
 Alle Daten sind bis KW2021/47.
 Jede Data Frame gibt es 10 Columns: Kalenderjahr, Kalenderwoche, Bundesland, Altersgruppe, Neuerkrankung, Hospitalisierung, Jahreszeit, Impfquote, Lockdown, Jahrwoche.
@@ -181,7 +181,7 @@ hospitalisierung_clean <-
   mutate(Berichtsdatum = as.Date(Datum)) %>%
   mutate(Weekday = as.factor(weekdays(Berichtsdatum, abbreviate = TRUE))) %>%
   filter(!(Bundesland == "Bundesgebiet" | Altersgruppe == "00+")) %>%
-  filter(Weekday == "周一") %>% # "周一" bedeutet "Montag"
+  filter(Weekday == "Mon") %>% # "周一" bedeutet "Montag"
   mutate(Berichtsdatum = Berichtsdatum - 1) %>%
   arrange(-desc(Berichtsdatum)) %>%
   mutate(Kalenderjahr = format(Berichtsdatum, format = "%Y"),
@@ -222,7 +222,7 @@ hospitalisierung_clean_final <-
 ```
 
 Data "impfung" cleaning
-```{r}
+```{r Impfung}
 df_bundeslaender2 <- data.frame('Bundeslandnummer' = c("01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12", "13", "14", "15", "16", "17"), 
                                 'Bundesland' = c("Schleswig-Holstein",
                                                       "Hamburg",
@@ -304,7 +304,7 @@ impfung_clean_sum_new <-
   mutate(Impfdatum = as.Date(add_Date)) %>%
   arrange(-desc(Impfdatum)) %>%
   mutate(Weekday = as.factor(weekdays(Impfdatum, abbreviate = TRUE))) %>%
-  filter(Weekday == "周日") %>% # ”周日“ bedeutet "Sonntag"
+  filter(Weekday == "Sun") %>% # ”周日“ bedeutet "Sonntag"
   mutate(Kalenderjahr = format(Impfdatum, format = "%Y"),
          Kalenderwoche = strftime(Impfdatum, format = "%V"))
 
@@ -462,15 +462,15 @@ Covid19_Regelungen_new <-
     Kalenderwoche == "9" ~ "09",
     TRUE ~ Kalenderwoche
     ))
-  inzidenznachAnmeldedatum_hosp_impf_lock <-
+  fin_datensatz <-
   merge(inzidenznachAnmeldedatum_hosp_impf, Covid19_Regelungen_new, by = c('Kalenderjahr', 'Kalenderwoche'), all.x = TRUE)
 
 # Typen von columns feststellen
-  inzidenznachAnmeldedatum_hosp_impf_lock$Jahrwoche <-
-    as.character(str_c(inzidenznachAnmeldedatum_hosp_impf_lock$Kalenderjahr,
-                     inzidenznachAnmeldedatum_hosp_impf_lock$Kalenderwoche, sep = '-'))
-  inzidenznachAnmeldedatum_hosp_impf_lock$Bundesland <- as.factor(inzidenznachAnmeldedatum_hosp_impf_lock$Bundesland)
-  inzidenznachAnmeldedatum_hosp_impf_lock$Altersgruppe <- as.factor(inzidenznachAnmeldedatum_hosp_impf_lock$Altersgruppe)
-  inzidenznachAnmeldedatum_hosp_impf_lock$Jahreszeit <- as.factor(inzidenznachAnmeldedatum_hosp_impf_lock$Jahreszeit)
+  fin_datensatz$Jahrwoche <-
+    as.character(str_c(fin_datensatz$Kalenderjahr,
+                     fin_datensatz$Kalenderwoche, sep = '-'))
+  fin_datensatz$Bundesland <- as.factor(fin_datensatz$Bundesland)
+  fin_datensatz$Altersgruppe <- as.factor(fin_datensatz$Altersgruppe)
+  fin_datensatz$Jahreszeit <- as.factor(fin_datensatz$Jahreszeit)
 ```
 
