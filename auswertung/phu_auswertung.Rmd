@@ -92,3 +92,17 @@ impfquote_alt %>%
   facet_wrap(~ Jahrwoche)
 ```
 
+```{r Streudiagramm Neuerkrankung Hospitalisierung}
+log_streu <- ggplot(fin_datensatz) +
+  geom_jitter(aes(x = log(Neuerkrankung), y = log(Hospitalisierung), color = Altersgruppe)) +
+  scale_color_manual(values = c("#f1a340", "#998ec3")) +
+  theme_minimal()
+
+normal_streu <- ggplot(fin_datensatz) +
+  geom_point(aes(x = Neuerkrankung, y = Hospitalisierung, color = Altersgruppe)) +
+  scale_color_manual(values = c("#f1a340", "#998ec3")) +
+  theme_minimal()
+
+ggarrange(normal_streu, log_streu, common.legend = T)
+```
+
