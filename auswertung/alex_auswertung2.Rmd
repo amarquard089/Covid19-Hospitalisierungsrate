@@ -330,7 +330,9 @@ final_df_wo_impfung <- final_df_wo_impfung[-c(1,2,3,4), ]
 
 ## Main Model
 
-main_model<- lm(log(sum_hosp_nowcast) ~ Altersgruppe +
+final_df_wo_impfung$season <- relevel(final_df_wo_impfung$season, ref = "Summer")
+
+main_model<- lm(log(sum_hosp_nowcast) ~ Altersgruppe *
                   season + log(lag_1) + log(lag_2), 
                    data = final_df_wo_impfung)
 
@@ -378,7 +380,7 @@ ggplot(data.frame(y_true = final_df_wo_impfung$sum_hosp_nowcast,
                    group = Altersgruppe, col = "orange"), 
                size = 3, alpha = 0.3) +
   facet_wrap(~Altersgruppe) +
-  geom_vline(xintercept = "2021-42", linetype="dotted") +
+  geom_vline(xintercept = "2021-48", linetype="dotted") +
   scale_colour_manual(name = 'Values', 
          values =c('black'='black',  'red' = 'red', 'orange' = 'orange'), 
          labels = c('True', 'Predicted', 'Forecast')) +
@@ -389,7 +391,50 @@ ggplot(data.frame(y_true = final_df_wo_impfung$sum_hosp_nowcast,
   theme(text = element_text(size = 20))
 
 
+# Anhang:
+# Überprüfen auf Normalverteilung der Responsevariable
 
+par(mfrow = c(1,2))
+hist(final_df_wo_impfung[final_df_wo_impfung$Altersgruppe == "(-Inf, 59]", ]$sum_hosp_nowcast,
+     freq = F,
+     main = "Histogramm der Hospitalisierungen 0 - 59",
+     xlab = "Hospitalisierungen")
+
+hist(log(final_df_wo_impfung[final_df_wo_impfung$Altersgruppe == "(-Inf, 59]", ]$sum_hosp_nowcast),
+     freq = F,
+     main = "",
+     xlab = "log. Hospitalisierungen")
+lines(density(log(final_df_wo_impfung[final_df_wo_impfung$Altersgruppe == "(-Inf, 59]", ]$sum_hosp_nowcast)), col = "blue")
+
+par(mfrow = c(1,2))
+hist(final_df_wo_impfung[final_df_wo_impfung$Altersgruppe == "(59, Inf)", ]$sum_hosp_nowcast,
+     freq = F,
+     main = "Histogramm der Hospitalisierungen 59 - Inf",
+     xlab = "Hospitalisierungen")
+
+hist(log(final_df_wo_impfung[final_df_wo_impfung$Altersgruppe == "(59, Inf)", ]$sum_hosp_nowcast),
+     freq = F,
+     main = "",
+     xlab = "log. Hospitalisierungen")
+lines(density(log(final_df_wo_impfung[final_df_wo_impfung$Altersgruppe == "(59, Inf)", ]$sum_hosp_nowcast)), col = "blue")
+
+# Normalverteilung ist nicht wirklich gegeben. 
+
+# Anhang:
+bptest(main_model)
+# Teste auf Homoskedastische Störterme: Breusch Pagan
+# Test ergibt, dass die Störterme heteroskedastisch sind
+
+# versuche den Fehler durch gewichtung zu beheben
+eps_sq <- main_model$residuals^2
+lm_der_eps <- lm(log(eps_sq) ~ Altersgruppe +
+                  season + log(lag_1) + log(lag_2), 
+                   data = final_df_wo_impfung)
+summary(lm_der_eps)
+
+# Keine der Kovariablen haben einen signifikanten Effekt
+# auf den Fehlerterm. Eine Gewichtung ist also nicht
+# sinnvoll
 
 # Anhang:
 par(mfrow = c(2,2))
@@ -454,6 +499,9 @@ ggplot(data.frame(y_true = final_df_wo_impfung$sum_hosp_nowcast,
   theme(text = element_text(size = 20))
 
 ```
+
+
+
 ```{r lasso und weiteres}
 
 formula_grouped_lasso <- 
