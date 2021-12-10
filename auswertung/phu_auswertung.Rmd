@@ -9,6 +9,8 @@ output: pdf_document
 knitr::opts_chunk$set(echo = TRUE)
 packages <- c("tidyverse", "gghighlight")
 lapply(packages, library, character.only = TRUE)
+fin_datensatz$Jahrwoche <- as.character(str_c(fin_datensatz$Kalenderjahr, 
+                                              fin_datensatz$Kalenderwoche, sep = " - "))
 ```
 
 
@@ -19,21 +21,30 @@ sum_hosp <- fin_datensatz %>%
   summarise(sum(Hospitalisierung)) %>%
   mutate(Jahreszeit = factor(Jahreszeit, levels = c("Fruehling", "Sommer", "Herbst", "Winter")))
 
+png(filename="../Bilder/Hospitalisierung_mit_Jahreszeit.png", width= 2000, height = 900)
+
 ggplot(data = sum_hosp) +
   geom_col(aes(x = Jahrwoche, y = `sum(Hospitalisierung)`, fill = Jahreszeit)) +
-  geom_vline(xintercept = "2020-04") +
-  geom_vline(xintercept = "2020-18") +
-  geom_vline(xintercept = "2020-31") +
-  geom_vline(xintercept = "2020-44") +
-  geom_vline(xintercept = "2021-04") +
-  geom_vline(xintercept = "2021-17") +
-  geom_vline(xintercept = "2021-30") +
-  geom_vline(xintercept = "2021-43") +
-  scale_x_discrete(breaks = sum_hosp$Jahrwoche[c(2, seq(16, 94, 13))]) +
+  # geom_vline(xintercept = sum_hosp$Jahrwoche[c(2, seq(16, 94, 13))], color = "#bdbdbd") +
+  # geom_vline(xintercept = "2020-18", color = "#bdbdbd") +
+  # geom_vline(xintercept = "2020-31", color = "#bdbdbd") +
+  # geom_vline(xintercept = "2020-44", color = "#bdbdbd") +
+  # geom_vline(xintercept = "2020-52", color = "#bdbdbd") +
+  # geom_vline(xintercept = "2021-04", color = "#bdbdbd") +
+  # geom_vline(xintercept = "2021-17", color = "#bdbdbd") +
+  # geom_vline(xintercept = "2021-30", color = "#bdbdbd") +
+  # geom_vline(xintercept = "2021-43", color = "#bdbdbd") +
+  scale_x_discrete(breaks = sum_hosp$Jahrwoche[c(1, 52, 98)]) +
   theme_minimal() +
   scale_fill_manual(values = c("#4daf4a","#ffd92f", "#d95f02", "#377eb8")) +
+  theme(text = element_text(size = 25)) +
+  # theme(legend.position = c(0.95, 0.9),
+  #       legend.background = element_rect(fill="white", size=0.5),
+  #       axis.text.x = element_text(angle = 45))  +
   ylab("Hospitalisierung")
+  
 
+dev.off()
 ```
 
 
@@ -43,13 +54,19 @@ hosp_alter <- fin_datensatz %>%
   group_by(Jahrwoche, Altersgruppe) %>%
   summarise(sum(Hospitalisierung))
 
+png(filename="../Bilder/Hospitalisierung_nach_Altersgruppen.png", width= 1200, height = 540)
+
 ggplot(hosp_alter) +
   geom_line(aes(x = Jahrwoche, y = `sum(Hospitalisierung)`, 
-                group = Altersgruppe, color = Altersgruppe), size = 1) +
-  scale_x_discrete(breaks = sum_hosp$Jahrwoche[c(seq(1, 98, 20), 98)]) +
+                group = Altersgruppe, color = Altersgruppe), size = 1.25) +
+  scale_x_discrete(breaks = sum_hosp$Jahrwoche[c(1, 52, 98)]) +
   gghighlight() +
   theme_minimal() +
+  scale_color_manual(values = c("#f1a340", "#998ec3")) +
+  theme(text = element_text(size = 25)) +
   ylab("Hospitalisierung")
+
+dev.off()
 ```
 
 ```{r Entwicklung Impfquote nach Altersgruppen}
@@ -93,16 +110,35 @@ impfquote_alt %>%
 ```
 
 ```{r Streudiagramm Neuerkrankung Hospitalisierung}
-log_streu <- ggplot(fin_datensatz) +
-  geom_jitter(aes(x = log(Neuerkrankung), y = log(Hospitalisierung), color = Altersgruppe)) +
-  scale_color_manual(values = c("#f1a340", "#998ec3")) +
-  theme_minimal()
-
 normal_streu <- ggplot(fin_datensatz) +
-  geom_point(aes(x = Neuerkrankung, y = Hospitalisierung, color = Altersgruppe)) +
+  geom_point(aes(x = Neuerkrankung, y = Hospitalisierung, color = Altersgruppe), size = 3) +
   scale_color_manual(values = c("#f1a340", "#998ec3")) +
-  theme_minimal()
+  theme_minimal() +
+  theme(text = element_text(size = 25))
+
+log_streu <- ggplot(fin_datensatz) +
+  geom_point(aes(x = log(Neuerkrankung), y = log(Hospitalisierung), color = Altersgruppe), size = 3) +
+  scale_color_manual(values = c("#f1a340", "#998ec3")) +
+  theme_minimal() +
+  theme(text = element_text(size = 25))
+
+png(filename="../Bilder/Scatter_plot.png", width= 2000, height = 900)
 
 ggarrange(normal_streu, log_streu, common.legend = T)
+
+dev.off()
+```
+
+```{r Histogramm Hospitalisierung}
+png(filename="../Bilder/Histogramm_Hospitalisierung.png", width= 2000, height = 900)
+
+ggplot(final_df_wo_impfung) +
+  geom_histogram(aes(x = sum_hosp_nowcast),bins = 40, color = "#e34a33", fill = "#fdbb84") +
+  theme_minimal() +
+  xlab("Hospitalisierungen") +
+  ylab("Density") +
+  theme(text = element_text(size = 25))
+
+dev.off()
 ```
 

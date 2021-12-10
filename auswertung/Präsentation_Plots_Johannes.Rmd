@@ -18,7 +18,7 @@ library(ggpubr)
 
 ## Datensatz: inzidenz_hosp
 
-inzidenz_hosp <- readRDS("C:/Users/elvis/Desktop/Covid19-Hospitalisierungsrate/daten/inzidenz_hosp.Rds")
+inzidenz_hosp <- readRDS("../daten/inzidenz_hosp.Rds")
 
 ## Alter 12 - 17 Jahre:
 
@@ -31,7 +31,16 @@ colnames(inzidenz_hosp_bis17jahre) <- c("meldewoche", "ungeimpft", "geimpft")
 
 # Plot: 
 
-inzidenz_hosp_bis17jahre_plot <- ggplot() + geom_line(data = inzidenz_hosp_bis17jahre, aes(x = meldewoche, y = ungeimpft, colour = "Ungeimpft"), size = 1) + geom_line(data = inzidenz_hosp_bis17jahre, aes(x = meldewoche, y = geimpft, colour = "Geimpft"), size = 1) + xlab("Meldewoche") + ylab("Inzidenz") + ggtitle("12 - 17 Jahre") + ylim(0, 15) + labs(color = "Impfstatus") + theme_minimal() + theme(legend.key.size = unit(2, "cm"))
+inzidenz_hosp_bis17jahre_plot <- ggplot() + 
+  geom_line(data = inzidenz_hosp_bis17jahre, 
+            aes(x = meldewoche, y = ungeimpft, colour = "Ungeimpft"), size = 1.25) + 
+  geom_line(data = inzidenz_hosp_bis17jahre, 
+            aes(x = meldewoche, y = geimpft, colour = "Geimpft"), size = 1.25) + 
+  scale_color_manual(values = c("#a1d76a", "#e9a3c9")) +
+  xlab("Meldewoche") + ylab("Inzidenz") + ggtitle("12 - 17 Jahre") + ylim(0, 15) + 
+  labs(color = "Impfstatus") + 
+  theme_minimal() + 
+  theme(legend.key.size = unit(2, "cm"), text = element_text(size = 25))
 
 
 ## Alter 18 - 59 Jahre:
@@ -45,7 +54,16 @@ colnames(inzidenz_hosp_bis59jahre) <- c("meldewoche", "ungeimpft", "geimpft")
 
 # Plot: 
 
-inzidenz_hosp_bis59jahre_plot <- ggplot() + geom_line(data = inzidenz_hosp_bis59jahre, aes(x = meldewoche, y = ungeimpft, colour = "Ungeimpft"), size = 1) + geom_line(data = inzidenz_hosp_bis59jahre, aes(x = meldewoche, y = geimpft, colour = "Geimpft"), size = 1) + xlab("Meldewoche") + ylab("") + ggtitle("18 - 59 Jahre") + ylim(0, 15) + labs(color = "Impfstatus") + theme_minimal() + theme(legend.key.size = unit(2, "cm"))
+inzidenz_hosp_bis59jahre_plot <- ggplot() + 
+  geom_line(data = inzidenz_hosp_bis59jahre, 
+            aes(x = meldewoche, y = ungeimpft, colour = "Ungeimpft"), size = 1.25) + 
+  geom_line(data = inzidenz_hosp_bis59jahre, 
+            aes(x = meldewoche, y = geimpft, colour = "Geimpft"), size = 1.25) +
+  scale_color_manual(values = c("#a1d76a", "#e9a3c9")) +
+  xlab("Meldewoche") + ylab("") + ggtitle("18 - 59 Jahre") + ylim(0, 15) + 
+  labs(color = "Impfstatus") + 
+  theme_minimal() + 
+  theme(legend.key.size = unit(2, "cm"), text = element_text(size = 25))
 
 
 ## Alter 60+ Jahre:
@@ -59,28 +77,57 @@ colnames(inzidenz_hosp_ab60jahre) <- c("meldewoche", "ungeimpft", "geimpft")
 
 # Plot:
 
-inzidenz_hosp_ab60jahre_plot <- ggplot() + geom_line(data = inzidenz_hosp_ab60jahre, aes(x = meldewoche, y = ungeimpft, colour = "Ungeimpft"), size = 1) + geom_line(data = inzidenz_hosp_bis59jahre, aes(x = meldewoche, y = geimpft, colour = "Geimpft"), size = 1) + xlab("Meldewoche") + ylab("") +
-  ggtitle("60+ Jahre") + ylim(0, 15) + labs(color = "Impfstatus") + theme_minimal() + theme(legend.key.size = unit(2, "cm"))
+inzidenz_hosp_ab60jahre_plot <- ggplot() + 
+  geom_line(data = inzidenz_hosp_ab60jahre, 
+            aes(x = meldewoche, y = ungeimpft, colour = "Ungeimpft"), size = 1.25) + 
+  geom_line(data = inzidenz_hosp_bis59jahre, 
+            aes(x = meldewoche, y = geimpft, colour = "Geimpft"), size = 1.25) +
+  scale_color_manual(values = c("#a1d76a", "#e9a3c9")) +
+  xlab("Meldewoche") + 
+  ylab("") +
+  ggtitle("60+ Jahre") + 
+  ylim(0, 15) + 
+  labs(color = "Impfstatus") + 
+  theme_minimal() + 
+  theme(legend.key.size = unit(2, "cm"), text = element_text(size = 25))
 
 ## Finaler Plot:
 
 combined_inzidenz_plot <- ggarrange(inzidenz_hosp_bis17jahre_plot, inzidenz_hosp_bis59jahre_plot, inzidenz_hosp_ab60jahre_plot, common.legend = T, ncol = 3)
-combined_inzidenz_plot <- annotate_figure(combined_inzidenz_plot, top = text_grob("Inzidenz der hospitalisierten Covid-19 Fälle 2021 in Deutschland", size = 20))              
+# combined_inzidenz_plot <- 
+#   annotate_figure(combined_inzidenz_plot, 
+#                   top = text_grob("Inzidenz der hospitalisierten Covid-19 Fälle 2021 in Deutschland",
+#                                   size = 20))              
+
+png(filename="../Bilder/Inzidenz_Impfung.png", width= 2000, height = 900)
 
 combined_inzidenz_plot
+
+dev.off()
 ```
 
 ```{r Plot 2}
 # Wöchentliche Neuerkrankungen seit Beginn der Pandemie mit Blick auf Lockdown
 
 # Datensatz: inzidenznachAnmeldedatum_hosp_impf_lock (qian_datensatz)
+sum_lockdown <- fin_datensatz %>%
+  select(Jahrwoche, Hospitalisierung, Lockdown) %>%
+  group_by(Jahrwoche, Lockdown) %>%
+  summarise(sum(Hospitalisierung))
 
-hosp_lock_plot <- ggplot(inzidenznachAnmeldedatum_hosp_impf_lock, aes(x = Jahrwoche, y = Hospitalisierung, fill = Lockdown)) + geom_col() + 
-  scale_x_discrete(breaks = inzidenznachAnmeldedatum_hosp_impf_lock$Jahrwoche[c(seq(1, nrow(inzidenznachAnmeldedatum_hosp_impf_lock), 200), nrow(inzidenznachAnmeldedatum_hosp_impf_lock))]) + ylab("Hospitalisierungen") + theme_minimal() + theme(legend.position = "top") + 
-  theme(legend.title = element_blank()) + theme(legend.key.size = unit(1, "cm")) + scale_fill_discrete(labels = c("Kein Lockdown", "Lockdown"))
+png(filename="../Bilder/Hospitalisierung_nach_Lockdown.png", width = 2000, height = 900)
 
-hosp_lock_plot <- annotate_figure(hosp_lock_plot, top = text_grob("Absolute Anzahl der Hospitalisierungen seit Beginn der Pandemie", size = 16))
+ggplot(sum_lockdown, aes(x = Jahrwoche, y = `sum(Hospitalisierung)`, fill = Lockdown)) + 
+  geom_col() + 
+  scale_x_discrete(breaks = sum_lockdown$Jahrwoche[c(1, 52, 98)]) + 
+  ylab("Hospitalisierungen") +
+  theme_minimal() + 
+  theme(legend.title = element_blank()) +
+  theme(legend.key.size = unit(1, "cm"), text = element_text(size = 25)) + 
+  scale_fill_manual(labels = c("Kein Lockdown", "Lockdown"), values = c("#d8b365", "#5ab4ac"))
 
-hosp_lock_plot
+dev.off()
 
+# hosp_lock_plot <- annotate_figure(hosp_lock_plot, top = text_grob("Absolute Anzahl der Hospitalisierungen seit Beginn der Pandemie", size = 16))
+# hosp_lock_plot
 ```
