@@ -179,9 +179,9 @@ hospitalisierung_clean <-
   hospitalisierung %>%
   select(Datum, Bundesland, Altersgruppe, '7T_Hospitalisierung_Faelle') %>% 
   mutate(Berichtsdatum = as.Date(Datum)) %>%
-  mutate(Weekday = as.factor(weekdays(Berichtsdatum, abbreviate = TRUE))) %>%
+  mutate(Weekday = as.factor(weekdays(Berichtsdatum))) %>%
   filter(!(Bundesland == "Bundesgebiet" | Altersgruppe == "00+")) %>%
-  filter(Weekday == "周一") %>% # "周一" bedeutet "Montag"
+  filter(Weekday == "星期一") %>% # "周一" oder "星期一" bedeutet "Montag"
   mutate(Berichtsdatum = Berichtsdatum - 1) %>%
   arrange(-desc(Berichtsdatum)) %>%
   mutate(Kalenderjahr = format(Berichtsdatum, format = "%Y"),
@@ -304,7 +304,7 @@ impfung_clean_sum_new <-
   mutate(Impfdatum = as.Date(add_Date)) %>%
   arrange(-desc(Impfdatum)) %>%
   mutate(Weekday = as.factor(weekdays(Impfdatum, abbreviate = TRUE))) %>%
-  filter(Weekday == "周日") %>% # ”周日“ bedeutet "Sonntag"
+  filter(Weekday == "日") %>% # ”周日“ oder "日" bedeutet "Sonntag"
   mutate(Kalenderjahr = format(Impfdatum, format = "%Y"),
          Kalenderwoche = strftime(Impfdatum, format = "%V"))
 
@@ -472,5 +472,18 @@ Covid19_Regelungen_new <-
   inzidenznachAnmeldedatum_hosp_impf_lock$Bundesland <- as.factor(inzidenznachAnmeldedatum_hosp_impf_lock$Bundesland)
   inzidenznachAnmeldedatum_hosp_impf_lock$Altersgruppe <- as.factor(inzidenznachAnmeldedatum_hosp_impf_lock$Altersgruppe)
   inzidenznachAnmeldedatum_hosp_impf_lock$Jahreszeit <- as.factor(inzidenznachAnmeldedatum_hosp_impf_lock$Jahreszeit)
+```
+
+```{r lag_final}
+final_lag <-
+  inzidenznachAnmeldedatum_hosp_impf_lock %>%
+  group_by(Bundesland, Altersgruppe) %>%
+  mutate(lag1_neuerkrankung = lag(Neuerkrankung),
+         lag2_neuerkrankung = lag(Neuerkrankung,2)
+         ) %>%
+  na.omit() %>%
+  select(Jahrwoche, Hospitalisierung, Neuerkrankung, lag1_neuerkrankung, lag2_neuerkrankung, Bundesland, Altersgruppe, Jahreszeit, Impfquote, Lockdown) %>%
+  filter(Impfquote != 0)
+summary(final_lag)
 ```
 
