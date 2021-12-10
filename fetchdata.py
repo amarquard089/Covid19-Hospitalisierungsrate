@@ -30,7 +30,7 @@ class DataFetcher:
         self.selector = selector
         self.filename = filename
 
-    def runParser(self, linkhead, sep = ',', append = False):
+    def runParser(self, linkhead, sep = ',', append = False, quoting = csv.QUOTE_MINIMAL):
         try:
             content = self.getContent(self.url)
             soup = bs(content, 'html.parser')
@@ -50,21 +50,21 @@ class DataFetcher:
         head = list(csvText.split('\n')[0].split(sep))
         data = csvText.split('\n')[1:]
         data = [list(x.split(sep)) for x in data]
-        self.writefile(self.filename, head, data, append)
+        self.writefile(self.filename, head, data, append, quoting)
 
     def getContent(self, url):
         response = requests.get(url)
         content = response.content
         return content
     
-    def writefile(self, filename, head, data, append = False):
+    def writefile(self, filename, head, data, append, quoting):
         if append:
             with open(self.filename, 'a', newline = '') as file:
-                writer = csv.writer(file, delimiter=',', quotechar = '"', quoting=csv.QUOTE_MINIMAL)
+                writer = csv.writer(file, delimiter=',', quotechar = '"', quoting=quoting)
                 writer.writerows(data)
         else:
             with open(self.filename, 'w', newline='') as file:
-                writer = csv.writer(file, delimiter=',', quotechar = '"', quoting=csv.QUOTE_MINIMAL)
+                writer = csv.writer(file, delimiter=',', quotechar = '"', quoting = quoting)
                 writer.writerow(head)
                 writer.writerows(data)
 
@@ -77,7 +77,6 @@ def main():
     DataFetcher(GITHUB_RKI_URL , GITHUB_RKI_SELECTOR, GITHUB_RKI_FILENAME).runParser(linkhead = GITHUB_RKI_LINKHEAD, sep = ',')
     DataFetcher(GITHUB_RKI_IMPFUNG_BL_URL , GITHUB_RKI_SELECTOR, GITHUB_RKI_IMPFUNG_BL_FILENAME).runParser(linkhead = GITHUB_RKI_LINKHEAD, sep = ',')
     DataFetcher(GITHUB_RKI_IMPFUNG_IQ_URL , GITHUB_RKI_SELECTOR, GITHUB_RKI_IMPFUNG_IQ_FILENAME).runParser(linkhead = GITHUB_RKI_LINKHEAD, sep = ',')
-
 
 if __name__ == '__main__':
     main()

@@ -331,4 +331,31 @@ nowcasting_lmu_08_11_hosp <- read_delim("Yegi 9.11/nowcasting_results_Hospdatum_
 
 saveRDS(nowcasting_lmu_08_11_hosp, file = './daten/nowcasting_lmu_08_11_hosp.Rds')
 
+### KIT daten ####
+kit_bevoelkerung <- read_csv("https://raw.githubusercontent.com/KITmetricslab/hospitalization-nowcast-hub/main/other_data/population_sizes.csv")
+colnames(kit_bevoelkerung) <- c("ID", "location", "age_group", "population")
+head(kit_bevoelkerung)
+
+kit_bevoelkerung$location <- unlist(sapply(kit_bevoelkerung$location, function(x) {
+  switch(x,
+         "DE-BW" = "Baden-Württemberg",
+         "DE-BY" = "Bayern",
+         "DE-BE" = "Berlin",
+         "DE-BB" = "Brandenburg",
+         "DE-HB" = "Bremen",
+         "DE-HH" = "Hamburg",
+         "DE-HE" = "Hessen",
+         "DE-MV" = "Mecklenburg-Vorpommern",
+         "DE-NI" = "Niedersachsen",
+         "DE-NW" = "Nordrhein-Westfalen",
+         "DE-RP" = "Rheinland-Pfalz",
+         "DE-SL" = "Saarland",
+         "DE-SN" = "Sachsen",
+         "DE-ST" = "Sachen-Anhalt",
+         "DE-SH" = "Schleswig-Holstein",
+         "DE-TH" = "Thüringen",
+         "DE" = "DE")
+}))
+
+saveRDS(kit_bevoelkerung, file = './daten/kit_bevoelkerung.Rds')
 
