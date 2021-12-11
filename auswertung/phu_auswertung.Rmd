@@ -54,13 +54,13 @@ hosp_alter <- fin_datensatz %>%
   group_by(Jahrwoche, Altersgruppe) %>%
   summarise(sum(Hospitalisierung))
 
-png(filename="../Bilder/Hospitalisierung_nach_Altersgruppen.png", width= 1200, height = 540)
+png(filename="../Bilder/Hospitalisierung_nach_Altersgruppen.png", width= 2000, height = 900)
 
 ggplot(hosp_alter) +
   geom_line(aes(x = Jahrwoche, y = `sum(Hospitalisierung)`, 
                 group = Altersgruppe, color = Altersgruppe), size = 1.25) +
   scale_x_discrete(breaks = sum_hosp$Jahrwoche[c(1, 52, 98)]) +
-  gghighlight() +
+  gghighlight(label_params = list(size = 10)) +
   theme_minimal() +
   scale_color_manual(values = c("#f1a340", "#998ec3")) +
   theme(text = element_text(size = 25)) +
@@ -133,10 +133,12 @@ dev.off()
 png(filename="../Bilder/Histogramm_Hospitalisierung.png", width= 2000, height = 900)
 
 ggplot(final_df_wo_impfung) +
-  geom_histogram(aes(x = sum_hosp_nowcast),bins = 40, color = "#e34a33", fill = "#fdbb84") +
+  geom_histogram(aes(x = log(sum_hosp_nowcast + 1), y =..density..), bins = 40, color = "#e34a33", 
+                 fill = "#fdbb84") +
+  geom_density(aes(x = log(sum_hosp_nowcast + 1))) +
   theme_minimal() +
   xlab("Hospitalisierungen") +
-  ylab("Density") +
+  # ylab("Density") +
   theme(text = element_text(size = 25))
 
 dev.off()
