@@ -332,7 +332,7 @@ final_df_wo_impfung <- final_df_wo_impfung[-c(1,2,3,4), ]
 
 final_df_wo_impfung$season <- relevel(final_df_wo_impfung$season, ref = "Summer")
 
-main_model<- lm(log(sum_hosp_nowcast) ~ Altersgruppe *
+main_model<- lm(log(sum_hosp_nowcast) ~ Altersgruppe +
                   season + log(lag_1) + log(lag_2), 
                    data = final_df_wo_impfung)
 
@@ -362,6 +362,8 @@ y_forecast <- data.frame(fit = exp(y_forecast[,1]),
                          upper = exp(y_forecast[,3]),
                          Lockdown = as.factor(c(0,0)))
 
+png(filename="../Bilder/Prediction.png", width= 2000, height = 900)
+
 ggplot(data.frame(y_true = final_df_wo_impfung$sum_hosp_nowcast, 
                   y_pred = exp(y_pred_main[, 1]), 
                   lwr = exp(y_pred_main[, 2]), upper = exp(y_pred_main[, 3]),
@@ -384,11 +386,13 @@ ggplot(data.frame(y_true = final_df_wo_impfung$sum_hosp_nowcast,
   scale_colour_manual(name = 'Values', 
          values =c('black'='black',  'red' = 'red', 'orange' = 'orange'), 
          labels = c('True', 'Predicted', 'Forecast')) +
-  xlab("Kalenderwoche") + ylab("Hospitalisierte Fälle") +
-  labs(title = "Hospitalisierte Fälle nach Altersgruppen") +
+  xlab("Jahrwoche") + ylab("Hospitalisierte Fälle") +
+  # labs(title = "Hospitalisierte Fälle nach Altersgruppen") +
   scale_x_discrete(breaks = c("2020-30","2021-10","2021-48")) +
   theme_minimal() +
-  theme(text = element_text(size = 20))
+  theme(text = element_text(size = 25))
+
+dev.off()
 
 
 # Anhang:
@@ -432,13 +436,22 @@ lm_der_eps <- lm(log(eps_sq) ~ Altersgruppe +
                    data = final_df_wo_impfung)
 summary(lm_der_eps)
 
-# Keine der Kovariablen haben einen signifikanten Effekt
-# auf den Fehlerterm. Eine Gewichtung ist also nicht
-# sinnvoll
+w_i <- 1/exp(fitted.values(lm_der_eps))
+
+main_model_w <- lm(log(sum_hosp_nowcast) ~ Altersgruppe +
+                  season + log(lag_1) + log(lag_2), 
+                   data = final_df_wo_impfung, weights = w_i)
+
+summary(main_model_w)
 
 # Anhang:
+
+png(filename="../Bilder/Diagnoseplots.png", width= 2000, height = 900)
+
 par(mfrow = c(2,2))
 plot(main_model)
+
+dev.off()
 
 par(mfrow = c(1,1))
 
