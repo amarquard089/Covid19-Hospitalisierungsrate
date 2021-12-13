@@ -9,6 +9,7 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(smurf)
+library(readr)
 require("lmtest")
 require("prais")
 source("funktionen.R")
@@ -32,6 +33,9 @@ rki_impfungen <- read_csv("https://raw.githubusercontent.com/robert-koch-institu
 rki_hospitalisierung <- read_csv("https://raw.githubusercontent.com/robert-koch-institut/COVID-19-Hospitalisierungen_in_Deutschland/master/Aktuell_Deutschland_adjustierte-COVID-19-Hospitalisierungen.csv")
 
 # Inzidenz Hospitalisiert
+rki_hosp_impf <- readRDS("../daten/inzidenz_hosp.Rds")
+head(rki_hosp_impf)
+
 rki_inz_sympt <- readRDS("../daten/inzidenz_symptom.Rds")
 head(rki_inz_sympt)
 
@@ -47,6 +51,8 @@ lmu_nowcasting_hosp2 <- readRDS("../daten/nowcasting_lmu_08_11_hosp.Rds")
 
 # lmu updated
 lmu_nowcasting_hosp <- read_csv("../Yegi 9.11/results_hosp_2021-12-01.csv")
+
+lmu_nowcasting_hosp <- read_csv("../Yegi 9.11/results_hosp_2021-12-09.csv")
 
 ## KIT
 kit_bevoelkerung <- readRDS("../daten/kit_bevoelkerung.Rds")
@@ -71,7 +77,7 @@ data_lgl1 <- data_lgl1 %>% select(-MeldeLandkreis) %>%
   mutate(Meldedatum = as.Date(Meldedatum)) %>%
   summarise(sum_hosp = sum(Hospitalisierung))
 
-data_lgl1$calendarweek <- paste(strftime(data_lgl1$Meldedatum, format = '%Y'), 
+data_lgl1$calendarweek <- paste(strftime(data_lgl1$Meldedatum, format = '%Y'),
                                         strftime(data_lgl1$Meldedatum, format = '%V'), 
                                      sep = '-')
 # Beim Jahresübergang kommt es zu einem Bug. Wird hier manuell resolved
@@ -245,8 +251,36 @@ covid_regelungen_Bayern <- covid_regelungen_Bayern %>%
   mutate(year = as.character(Jahr)) 
 faelle_und_hosp_bayern_w_iq_w_Regeln <- left_join(faelle_und_hosp_bayern_w_iq, covid_regelungen_Bayern[, c("KW","year","Lockdown")], by = c("KW", "year"))
 faelle_und_hosp_bayern_w_iq_w_Regeln <- faelle_und_hosp_bayern_w_iq_w_Regeln %>%
+  mutate(Lockdown = ifelse(is.na(Lockdown), 0, Lockdown)) %>%
   mutate(Lockdown = as.factor(Lockdown))
 
+
+# ergänze hosp + geimpft
+head(rki_hosp_impf)
+rki_hosp_impf_a <- rki_hosp_impf %>%
+  pivot_longer(cols = -Meldewoche, names_to = "Impfstatus_Altersgruppe") %>%
+  mutate(Impfstatus = regmatches(Impfstatus_Altersgruppe, 
+                                regexpr("[[:alpha:]]*", Impfstatus_Altersgruppe)),
+         Altersgruppe = regmatches(Impfstatus_Altersgruppe, 
+                                   regexpr("[0-9]{2}[-+][0-9]{0,2}", 
+                                           Impfstatus_Altersgruppe))) %>%
+  mutate(Altersgruppe = as.factor(Altersgruppe),
+         Impfstatus = as.factor(Impfstatus))
+  
+levels(rki_hosp_impf_a$Altersgruppe) <- c("(-Inf, 59]", "(-Inf, 59]", "(59, Inf)")
+ 
+rki_hosp_impf_a <- rki_hosp_impf_a %>%
+  group_by(Meldewoche, Altersgruppe, Impfstatus) %>%
+  summarise(inzidenz = sum(value)) %>%
+  group_by(Meldewoche, Altersgruppe) %>%
+  mutate(inzidenz_total_hosp = sum(inzidenz)) %>%
+  group_by(Meldewoche, Altersgruppe, Impfstatus) %>%
+  mutate(quote = round(inzidenz / inzidenz_total_hosp, 2)) %>%
+  mutate(KW = Meldewoche,
+         year = "2021") %>%
+  group_by(Altersgruppe) %>%
+  select(-inzidenz) %>%
+  spread(Impfstatus, quote)
 
 
 # ergänze symptomatisch + geimpft
@@ -267,18 +301,34 @@ rki_inz_sympt_a <- rki_inz_sympt_a %>%
   group_by(Meldewoche, Altersgruppe, Impfstatus) %>%
   summarise(inzidenz = sum(value)) %>%
   group_by(Meldewoche, Altersgruppe) %>%
-  mutate(inzidenz_total = sum(inzidenz)) %>%
+  mutate(inzidenz_total_sympt = sum(inzidenz)) %>%
   group_by(Meldewoche, Altersgruppe, Impfstatus) %>%
-  mutate(quote = round(inzidenz / inzidenz_total, 2)) %>%
+  mutate(quote = round(inzidenz / inzidenz_total_sympt, 2)) %>%
   mutate(KW = Meldewoche,
          year = "2021") %>%
   group_by(Altersgruppe) %>%
   select(-inzidenz) %>%
   spread(Impfstatus, quote)
 
+# join hosp + geimpft
+faelle_und_hosp_bayern_w_iq_w_Regeln_w_inzquote <- 
+  left_join(faelle_und_hosp_bayern_w_iq_w_Regeln, 
+            rki_hosp_impf_a, 
+            by = c("KW", "year", "Altersgruppe"))
 
 faelle_und_hosp_bayern_w_iq_w_Regeln_w_inzquote <-
-  left_join(faelle_und_hosp_bayern_w_iq_w_Regeln, 
+  faelle_und_hosp_bayern_w_iq_w_Regeln_w_inzquote %>%
+  select(-Meldewoche) %>%
+  mutate(Ungeimpfte_hosp = sum_hosp_nowcast * Ungeimpfte,
+         Geimpfte_hosp = sum_hosp_nowcast * Vollständig,
+         Ungeimpfte_hosp_quote = Ungeimpfte,
+         Vollständig_hosp_quote = Vollständig) %>%
+  select(-c(Vollständig, Ungeimpfte))
+
+# join infekt + geimpft
+
+faelle_und_hosp_bayern_w_iq_w_Regeln_w_inzquote <-
+  left_join(faelle_und_hosp_bayern_w_iq_w_Regeln_w_inzquote, 
             rki_inz_sympt_a, 
             by = c("KW", "year", "Altersgruppe"))
 
@@ -286,7 +336,10 @@ faelle_und_hosp_bayern_w_iq_w_Regeln_w_inzquote <-
   faelle_und_hosp_bayern_w_iq_w_Regeln_w_inzquote %>%
   select(-Meldewoche) %>%
   mutate(Ungeimpfte_infektionen = infektionen * Ungeimpfte,
-         Geimpfte_infektionen = infektionen * Vollständig) %>%
+         Geimpfte_infektionen = infektionen * Vollständig,
+         Ungeimpfte_infektionen_quote = Ungeimpfte,
+         Vollständig_infektionen_quote = Vollständig) %>%
+  select(-c(Ungeimpfte, Vollständig)) %>%
   # ergänze Lag für impfungen + sympt
   group_by(Altersgruppe) %>%
   mutate(infekt_ungeimpft_lag1 = lag(Ungeimpfte_infektionen),
@@ -314,11 +367,37 @@ final_df <- faelle_und_hosp_bayern_w_iq_w_Regeln_w_inzquote
 # Nicht sonderlich gut, da viele Beobachtungen NA enthalten
 
 model <- lm(log(sum_hosp_nowcast) ~ Altersgruppe +
-            season + log(anz_geimpft_lag1 + 1) + 
-            log(infekt_ungeimpft_lag2) + log(infekt_ungeimpft_lag1), 
+            log(infekt_geimpft_lag1) +
+              log(infekt_geimpft_lag2), 
                    data = final_df)
 summary(model)
 
+final_df_wo_na <- final_df %>% na.omit()
+
+model2 <- lm(log(sum_hosp_nowcast) ~ Altersgruppe +
+            log(infekt_geimpft_lag1) +
+              log(infekt_geimpft_lag2), 
+                   data = final_df_wo_na)
+summary(model2)
+
+eps_sq <- model2$residuals^2
+lm_der_eps <- lm(log(eps_sq) ~ Altersgruppe + log(infekt_geimpft_lag1) + log(infekt_geimpft_lag2), data = final_df_wo_na)
+summary(lm_der_eps)
+w_i <- 1/exp(fitted.values(lm_der_eps))
+model2_w <- lm(formula = log(sum_hosp_nowcast) ~ Altersgruppe + log(infekt_geimpft_lag1) + 
+    log(infekt_geimpft_lag2), data = final_df_wo_na, weights = w_i)
+summary(model2_w)
+
+hist(log(final_df_wo_na$sum_hosp_nowcast),
+     freq = F)
+lines(density(log(final_df_wo_na$sum_hosp_nowcast)))
+
+plot(final_df_wo_na$Altersgruppe, log(final_df_wo_na$sum_hosp_nowcast))
+plot(log(final_df_wo_na$lag_1), log(final_df_wo_na$sum_hosp_nowcast))
+plot(final_df_wo_na$season, log(final_df_wo_na$sum_hosp_nowcast))
+plot(final_df_wo_na$season, log(final_df_wo_na$lag_1))
+
+plot(model)
 ```
 
 ```{r Main Model}
@@ -362,8 +441,6 @@ y_forecast <- data.frame(fit = exp(y_forecast[,1]),
                          upper = exp(y_forecast[,3]),
                          Lockdown = as.factor(c(0,0)))
 
-png(filename="../Bilder/Prediction.png", width= 2000, height = 900)
-
 ggplot(data.frame(y_true = final_df_wo_impfung$sum_hosp_nowcast, 
                   y_pred = exp(y_pred_main[, 1]), 
                   lwr = exp(y_pred_main[, 2]), upper = exp(y_pred_main[, 3]),
@@ -392,8 +469,41 @@ ggplot(data.frame(y_true = final_df_wo_impfung$sum_hosp_nowcast,
   theme_minimal() +
   theme(text = element_text(size = 25))
 
-dev.off()
 
+
+# Stepwise regression model
+final_df_wo_impfung$sum_hosp_nowcast_log <- log(final_df_wo_impfung$sum_hosp_nowcast + 1)
+final_df_wo_impfung$lag_1_log <- log(final_df_wo_impfung$lag_1 + 1)
+final_df_wo_impfung$lag_2_log <- log(final_df_wo_impfung$lag_2 + 1)
+final_df_wo_impfung$lag_3_log <- log(final_df_wo_impfung$lag_3 + 1)
+final_df_wo_impfung$anz_geimpft_sum_log <- log(final_df_wo_impfung$anz_geimpft_sum + 1)
+final_df_wo_impfung$anz_geimpft_log <- log(final_df_wo_impfung$anz_geimpft + 1)
+final_df_wo_impfung$anz_geimpft_lag1_log <- log(final_df_wo_impfung$anz_geimpft_lag1 + 1) 
+final_df_wo_impfung$anz_geimpft_lag2_log <- log(final_df_wo_impfung$anz_geimpft_lag2 + 1) 
+
+full.model <- lm(sum_hosp_nowcast_log ~ . - sum_hosp - sum_hosp_nowcast - calendarweek - Lockdown - KW, 
+                   data = final_df_wo_impfung)
+
+step.model <- MASS::stepAIC(full.model, direction = "backward", 
+                      trace = FALSE)
+summary(step.model)
+plot(step.model)
+
+ggplot(data.frame(y_true = final_df_wo_impfung$sum_hosp_nowcast, 
+                  y_pred = exp(fitted.values(step.model)), 
+                  cw = final_df_wo_impfung$calendarweek, 
+                  Altersgruppe = final_df_wo_impfung$Altersgruppe)) +
+  geom_line(aes(x = cw, y = y_pred, group = Altersgruppe, col = "red")) +
+  geom_line(aes(x = cw, y = y_true, group = Altersgruppe, col = "black")) +
+  facet_wrap(~Altersgruppe) +
+  scale_colour_manual(name = 'Values', 
+         values =c('black'='black',  'red' = 'red'), 
+         labels = c('True', 'Predicted')) +
+  xlab("Jahrwoche") + ylab("Hospitalisierte Fälle") +
+  # labs(title = "Hospitalisierte Fälle nach Altersgruppen") +
+  scale_x_discrete(breaks = c("2020-30","2021-10","2021-48")) +
+  theme_minimal() +
+  theme(text = element_text(size = 25))
 
 # Anhang:
 # Überprüfen auf Normalverteilung der Responsevariable

@@ -118,6 +118,7 @@ inzidenz_new <- dplyr::left_join(inzidenz_new, df_bundeslaender, by = 'Bundeslan
 # Clean the Daten
 inzidenz_clean <- 
   inzidenz_new %>%
+  filter(!(Meldedatum == "2020-10-28" & Refdatum == "2020-01-19")) %>%
   select(Bundesland, Altersgruppe, Geschlecht, Neuerkrankung = AnzahlFall, Meldedatum) %>% 
   mutate(Meldedatum = as.Date(Meldedatum)) %>%
   mutate(Altersgruppe = str_remove_all(Altersgruppe, "A")) %>% 
@@ -135,7 +136,7 @@ inzidenz_clean <-
   relocate(c("Kalenderjahr", "Kalenderwoche", "Meldedatum", "Bundesland", "Altersgruppe", "Geschlecht", "Neuerkrankung"))
 
 # 01.01.2021 bis 03.01.2021 gehoert zu 2020, Kalenderwoche 53
-  inzidenz_clean_new <- inzidenz_clean %>%
+inzidenz_clean_new <- inzidenz_clean %>%
     mutate(Kalenderjahr = replace(Kalenderjahr, Meldedatum == "2021-01-01", "2020")) %>%
     mutate(Kalenderjahr = replace(Kalenderjahr, Meldedatum == "2021-01-02", "2020")) %>%
     mutate(Kalenderjahr = replace(Kalenderjahr, Meldedatum == "2021-01-03", "2020")) %>%
@@ -168,7 +169,6 @@ inzidenz_clean_final <-
   ungroup() %>%
   na.omit() %>%
   filter(!(Kalenderjahr == "2021" & Kalenderwoche > "47"))
-
 ```
 
 Data "hospitalisierung" cleaning
@@ -181,7 +181,7 @@ hospitalisierung_clean <-
   mutate(Berichtsdatum = as.Date(Datum)) %>%
   mutate(Weekday = as.factor(weekdays(Berichtsdatum, abbreviate = TRUE))) %>%
   filter(!(Bundesland == "Bundesgebiet" | Altersgruppe == "00+")) %>%
-  filter(Weekday == "Mon") %>% # "周一" bedeutet "Montag"
+  filter(Weekday == "Mo") %>% # "周一" bedeutet "Montag"
   mutate(Berichtsdatum = Berichtsdatum - 1) %>%
   arrange(-desc(Berichtsdatum)) %>%
   mutate(Kalenderjahr = format(Berichtsdatum, format = "%Y"),
@@ -473,4 +473,72 @@ Covid19_Regelungen_new <-
   fin_datensatz$Altersgruppe <- as.factor(fin_datensatz$Altersgruppe)
   fin_datensatz$Jahreszeit <- as.factor(fin_datensatz$Jahreszeit)
 ```
+
+
+```{r Altersgruppen in mehreren Kategorien}
+inzidenz_clean_w_all_Age <-
+  inzidenz_clean_new %>%
+  select(Kalenderjahr, Kalenderwoche, Bundesland, Altersgruppe, Neuerkrankung) %>%
+  group_by(Kalenderjahr, Kalenderwoche, Bundesland, Altersgruppe) %>%
+  summarise(Neuerkrankung = sum(Neuerkrankung)) %>%
+  ungroup() %>%
+  na.omit()
+
+hospitalisierung_clean_w_all_Age <-
+  hospitalisierung_clean %>%
+  select(Kalenderjahr, Kalenderwoche, Bundesland, Altersgruppe, Hospitalisierung) %>%
+  group_by(Kalenderjahr, Kalenderwoche, Bundesland, Altersgruppe) %>%
+  summarise(Hospitalisierung = sum(Hospitalisierung)) %>%
+  ungroup()
+
+unique(inzidenz_clean_w_all_Age$Altersgruppe)
+unique(hospitalisierung_clean_w_all_Age$Altersgruppe)
+
+inzidenz_clean_w_all_Age$Altersgruppe <- as.factor(inzidenz_clean_w_all_Age$Altersgruppe)
+hospitalisierung_clean_w_all_Age$Altersgruppe <- as.factor(hospitalisierung_clean_w_all_Age$Altersgruppe)
+
+inz_hosp_w_all_Age <- inner_join(inzidenz_clean_w_all_Age, hospitalisierung_clean_w_all_Age)
+
+list_of_dfs <- split(inz_hosp_w_all_Age, as.factor(inz_hosp_w_all_Age$Bundesland))
+
+lapply(list_of_dfs, function(x) {
+  plot(x$Altersgruppe, log(x$Hospitalisierung + 1), 
+       main = unique(x$Bundesland),
+       ylab = "log(Hospitalisiert)",
+       xlab = "Altersgruppen")
+})
+
+plot(inz_hosp_w_all_Age$Altersgruppe, log(inz_hosp_w_all_Age$Hospitalisierung + 1))
+
+# Abhängig von der Bundeslandwahl
+# erscheint es sinnvoll die Altersgruppen 0-4 mit 5-14 zusammen zu legen
+# Die restlichen Altersgruppen werden vorerst getrennt betrachtet,
+# teilweise werden 60-80 und 80+ zusammen gelegt
+
+
+
+
+
+
+inz_hosp_w_all_Age <-
+  inz_hosp_w_all_Age %>%
+  group_by(Kalenderjahr, Kalenderwoche, Bundesland, Altersgruppe) %>%
+  summarise(Hospitalisierung = sum(Hospitalisierung),
+            Neuerkrankung = sum(Neuerkrankung)) %>%
+  ungroup()
+
+plot(inz_hosp_w_all_Age$Altersgruppe, log(inz_hosp_w_all_Age$Hospitalisierung + 1))
+
+inz_hosp_w_all_Age_lag <- inz_hosp_w_all_Age %>%
+  group_by(Bundesland, Altersgruppe) %>%
+  mutate(Neuerkrankung_lag1 = lag(Neuerkrankung, 1, default = 0),
+         Neuerkrankung_lag2 = lag(Neuerkrankung, 2, default = 0))
+
+```
+
+
+
+
+
+
 
