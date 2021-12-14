@@ -166,8 +166,7 @@ impfquote1 %>%
   theme_minimal() +
   theme_void() +
   scale_fill_brewer(type = "seq", palette = "YlGnBu", direction = -1) +
-  facet_wrap(~ Jahrwoche) +
-  transition_time(Kalenderwoche)
+  facet_wrap(~ Jahrwoche)
 
 impfquote2 <- impfquote %>%
   filter(Altersgruppe == "60+")
@@ -180,7 +179,9 @@ impfquote2 %>%
   theme_minimal() +
   theme_void() +
   scale_fill_brewer(type = "seq", palette = "YlGnBu", direction = -1) +
-  facet_wrap(~ Jahrwoche)
+  facet_wrap(~ Jahrwoche) +
+  transition_states(travel_year, 1, 1) +
+  ggtitle("{closest_state}")
 
 ?transition_states
 ggplot(impfquote1) +
@@ -213,3 +214,27 @@ ggplot(hosp_alter) +
   labs(title = "Year: {frame_time}")
 
 devtools::install_github('thomasp85/gganimate')
+library(gganimate)
+install.packages("av")
+library(stringi)
+install.packages("stringi")
+
+
+
+library(ggplot2)
+library(gganimate)
+theme_set(theme_bw())
+install.packages("gapminder")
+library(gapminder)
+p <- ggplot(
+  gapminder, 
+  aes(x = gdpPercap, y=lifeExp, size = pop, colour = country)
+) +
+  geom_point(show.legend = FALSE, alpha = 0.7) +
+  scale_color_viridis_d() +
+  scale_size(range = c(2, 12)) +
+  scale_x_log10() +
+  labs(x = "GDP per capita", y = "Life expectancy")
+p
+p + transition_time(year) +
+  labs(title = "Year: {frame_time}")
