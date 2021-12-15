@@ -1,0 +1,150 @@
+---
+title: "Phu_Auswertung"
+author: 'Phu Nguyen (Matrikelnr: 11904670)'
+date: "12/6/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+packages <- c("tidyverse", "gghighlight")
+lapply(packages, library, character.only = TRUE)
+```
+
+
+```{r Hospitalisierung mit Jahreszeit}
+readRDS('../data_processed/fin_datensatz.Rds')
+
+fin_datensatz$Jahrwoche <- as.character(str_c(fin_datensatz$Kalenderjahr, 
+                                              fin_datensatz$Kalenderwoche, sep = " - "))
+
+
+sum_hosp <- fin_datensatz %>%
+  select(Jahrwoche, Hospitalisierung, Jahreszeit) %>%
+  group_by(Jahrwoche, Jahreszeit) %>%
+  summarise(sum(Hospitalisierung)) %>%
+  mutate(Jahreszeit = factor(Jahreszeit, levels = c("Fruehling", "Sommer", "Herbst", "Winter")))
+
+png(filename="./Bilder/Hospitalisierung_mit_Jahreszeit.png", width= 2000, height = 900)
+
+ggplot(data = sum_hosp) +
+  geom_col(aes(x = Jahrwoche, y = `sum(Hospitalisierung)`, fill = Jahreszeit)) +
+  # geom_vline(xintercept = sum_hosp$Jahrwoche[c(2, seq(16, 94, 13))], color = "#bdbdbd") +
+  # geom_vline(xintercept = "2020-18", color = "#bdbdbd") +
+  # geom_vline(xintercept = "2020-31", color = "#bdbdbd") +
+  # geom_vline(xintercept = "2020-44", color = "#bdbdbd") +
+  # geom_vline(xintercept = "2020-52", color = "#bdbdbd") +
+  # geom_vline(xintercept = "2021-04", color = "#bdbdbd") +
+  # geom_vline(xintercept = "2021-17", color = "#bdbdbd") +
+  # geom_vline(xintercept = "2021-30", color = "#bdbdbd") +
+  # geom_vline(xintercept = "2021-43", color = "#bdbdbd") +
+  scale_x_discrete(breaks = sum_hosp$Jahrwoche[c(1, 52, 98)]) +
+  theme_minimal() +
+  scale_fill_manual(values = c("#4daf4a","#ffd92f", "#d95f02", "#377eb8")) +
+  theme(text = element_text(size = 25)) +
+  # theme(legend.position = c(0.95, 0.9),
+  #       legend.background = element_rect(fill="white", size=0.5),
+  #       axis.text.x = element_text(angle = 45))  +
+  ylab("Hospitalisierung")
+  
+
+dev.off()
+```
+
+
+```{r Hospitalisierung nach Altersgruppen}
+hosp_alter <- fin_datensatz %>%
+  select(Jahrwoche, Altersgruppe, Hospitalisierung) %>%
+  group_by(Jahrwoche, Altersgruppe) %>%
+  summarise(sum(Hospitalisierung))
+
+png(filename="./Bilder/Hospitalisierung_nach_Altersgruppen.png", width= 2000, height = 900)
+
+ggplot(hosp_alter) +
+  geom_line(aes(x = Jahrwoche, y = `sum(Hospitalisierung)`, 
+                group = Altersgruppe, color = Altersgruppe), size = 1.25) +
+  scale_x_discrete(breaks = sum_hosp$Jahrwoche[c(1, 52, 98)]) +
+  gghighlight(label_params = list(size = 10)) +
+  theme_minimal() +
+  scale_color_manual(values = c("#f1a340", "#998ec3")) +
+  theme(text = element_text(size = 25)) +
+  ylab("Hospitalisierung")
+
+dev.off()
+```
+
+```{r Entwicklung Impfquote nach Altersgruppen}
+impfquote <- fin_datensatz %>%
+  select(Jahrwoche, Impfquote, Altersgruppe, Kalenderwoche) %>%
+  group_by(Jahrwoche, Altersgruppe, Kalenderwoche) %>%
+  summarise(mean(Impfquote)) %>%
+  mutate(Nicht_geimpft = (1 - `mean(Impfquote)`))
+
+impfquote_jung <- impfquote %>%
+  filter(Altersgruppe == "00-59") %>%
+  mutate(Kalenderwoche = as.integer(Kalenderwoche))
+colnames(impfquote_jung)[4] <- "Geimpft"
+
+impfquote_jung %>%
+  pivot_longer(!c(Jahrwoche, Altersgruppe, Kalenderwoche), names_to = "Impfstatus", values_to = "Anteil") %>%
+  ggplot(aes(x = "", y = Anteil, fill = Impfstatus)) +
+  geom_bar(stat = "identity", width = 1) +
+  coord_polar("y", start = 0) +
+  theme_minimal() +
+  theme_void() +
+  scale_fill_brewer(type = "seq", palette = "YlGnBu", direction = -1, labels = c("Geimpft", "Nicht geimpft")) +
+  labs(title = "Entwicklung Impfquote bei Jugendlichen") +
+  facet_wrap(~ Jahrwoche)
+
+impfquote_alt <- impfquote %>%
+  filter(Altersgruppe == "60+") %>%
+  mutate(Kalenderwoche = as.integer(Kalenderwoche))
+colnames(impfquote_alt)[4] <- "Geimpft"
+
+impfquote_alt %>%
+  pivot_longer(!c(Jahrwoche, Altersgruppe, Kalenderwoche), names_to = "Impfstatus", values_to = "Anteil") %>%
+  ggplot(aes(x = "", y = Anteil, fill = Impfstatus)) +
+  geom_bar(stat = "identity", width = 1) +
+  coord_polar("y", start = 0) +
+  theme_minimal() +
+  theme_void() +
+  scale_fill_brewer(type = "seq", palette = "YlGnBu", direction = -1, labels = c("Geimpft", "Nicht geimpft")) +
+  labs(title = "Entwicklung Impfquote bei Alten") +
+  facet_wrap(~ Jahrwoche)
+```
+
+```{r Streudiagramm Neuerkrankung Hospitalisierung}
+normal_streu <- ggplot(fin_datensatz) +
+  geom_point(aes(x = Neuerkrankung, y = Hospitalisierung, color = Altersgruppe), size = 3) +
+  scale_color_manual(values = c("#f1a340", "#998ec3")) +
+  theme_minimal() +
+  theme(text = element_text(size = 25))
+
+log_streu <- ggplot(fin_datensatz) +
+  geom_point(aes(x = log(Neuerkrankung), y = log(Hospitalisierung), color = Altersgruppe), size = 3) +
+  scale_color_manual(values = c("#f1a340", "#998ec3")) +
+  theme_minimal() +
+  theme(text = element_text(size = 25))
+
+png(filename="./Bilder/Scatter_plot.png", width= 2000, height = 900)
+
+ggarrange(normal_streu, log_streu, common.legend = T)
+
+dev.off()
+```
+
+```{r Histogramm Hospitalisierung}
+png(filename="./Bilder/Histogramm_Hospitalisierung.png", width= 2000, height = 900)
+
+ggplot(final_df_wo_impfung) +
+  geom_histogram(aes(x = log(sum_hosp_nowcast + 1), y =..density..), bins = 40, color = "#e34a33", 
+                 fill = "#fdbb84") +
+  geom_density(aes(x = log(sum_hosp_nowcast + 1))) +
+  theme_minimal() +
+  xlab("Hospitalisierungen") +
+  # ylab("Density") +
+  theme(text = element_text(size = 25))
+
+dev.off()
+```
+
