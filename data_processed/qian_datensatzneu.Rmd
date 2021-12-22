@@ -1,0 +1,317 @@
+---
+title: "qian_datensatzneu"
+author: "Qian Feng"
+date: "12/15/2021"
+output: html_document
+---
+Einfach alle Chunks durchführen und "fin_datensatz" ist das finale datensatz. Wenn Sie wollen Altersgruppe und Bundesland in mehreren Kategorien sind, dann den letzten Chunk sehen.
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(tibble)
+library(stringr)
+library(readr)
+library(tidyr)
+library(lubridate)
+library(tidyverse)
+```
+
+orignal Datensatz
+```{r read data}
+inzidenz <- readRDS('../data_truth/RKI/infektionen.Rds')
+
+hospitalisierung <- readRDS('../data_truth/RKI/hospitalisierung.Rds')
+
+hospitalisierungnowcasting <- readRDS('../data_truth/RKI/hospitalisierung_adjustiert.Rds')
+
+impfung <- readRDS('../data_truth/RKI/impfungen.Rds')
+
+bevoelkerung <- readRDS('../data_truth/KIT/kit_bevoelkerung.Rds')
+
+Covid19_Regelungen <- readRDS('../data_truth/zusaetzlich/regelungen.Rds')
+
+```
+
+Data "inzidenz" nach Meldedatum cleaning
+```{r inzidenz_meldedatum_clean}
+# wechseln Bundeslandsnummer zu Bundeslandname
+df_bundeslaender <- data.frame('Bundeslandnummer' = as.character(seq(16)), 
+                                'Bundesland' = c("Schleswig-Holstein",
+                                                      "Hamburg",
+                                                      "Niedersachsen",
+                                                      "Bremen",
+                                                      "Nordrhein-Westfalen",
+                                                      "Hessen",
+                                                      "Rheinland-Pfalz",
+                                                      "Baden-Wuerttemberg",
+                                                      "Bayern",
+                                                      "Saarland",
+                                                      "Berlin",
+                                                      "Brandenburg",
+                                                      "Mecklenburg-Vorpommern",
+                                                      "Sachsen",
+                                                      "Sachsen-Anhalt",
+                                                      "Thueringen")
+)
+inzidenz_new <-
+  inzidenz %>%
+  mutate(IdLandkreis = as.character(IdLandkreis)) %>%
+  mutate(Bundeslandnummer = gsub('.{3}$', '', IdLandkreis))
+
+inzidenz_new <- dplyr::left_join(inzidenz_new, df_bundeslaender, by = 'Bundeslandnummer')
+
+inzidenz_meldedatum_clean <- 
+  inzidenz_new %>%
+  select(Meldedatum, Bundesland, Altersgruppe, Neuerkrankung = AnzahlFall) %>% 
+  mutate(Meldedatum = as.Date(Meldedatum),
+         Altersgruppe = str_remove_all(Altersgruppe, "A")) %>%
+  mutate(Altersgruppe = case_when(
+    Altersgruppe == "unbekannt" ~ NA_character_,
+    TRUE ~ Altersgruppe
+  )) %>%
+  arrange(-desc(Meldedatum)) %>%
+  group_by(Meldedatum, Bundesland, Altersgruppe) %>%
+  summarise(Neuerkrankung = sum(Neuerkrankung)) %>%
+  ungroup() %>%
+  mutate(Altersgruppe = as.factor(Altersgruppe),
+         Bundesland = as.factor(Bundesland)) %>%
+  mutate(Kalenderjahr = format(Meldedatum, format = "%Y"),
+         Kalenderwoche = strftime(Meldedatum, format = "%V")) %>%
+  mutate(Kalenderjahr = replace(Kalenderjahr, Kalenderwoche == "53", "2020")) %>%
+  filter(!(Kalenderjahr == "2021" & Kalenderwoche > "44")) %>%
+  select(Kalenderjahr, Kalenderwoche, Bundesland, Altersgruppe, Neuerkrankung) %>%
+  group_by(Kalenderjahr, Kalenderwoche, Bundesland, Altersgruppe) %>% 
+  summarise(Neuerkrankung = sum(Neuerkrankung)) %>%
+  ungroup() %>%
+  na.omit() # Es gibt 4794226	- 4791413 = 2813 Covid-19-Faelle, dessen Bundesland und Altersgruppe NAs sind und 2813/4794226 = 0.0005867475 < 5%, dewegen kann man einfach NAs weg nehmen.
+```
+
+Data "hospitalisierung" cleaning
+```{r hospitalisierung_clean}
+# wenn man am 16.12.2021 untersuchen, dann ist Hospitalisierung bis 07.11.2021 fertig nachgemeldet und braucht keine Nowcasting.
+# Sonntag, 07.11.2021 KW44, deswegen bleiben hier die tatsächlich Daten mit Nachmeldung bis KW44.
+
+# basierend auf alle Daten am Montag
+hospitalisierung_clean <- 
+  hospitalisierung %>%
+  select(Datum, Bundesland, Altersgruppe, '7T_Hospitalisierung_Faelle') %>% 
+  mutate(Berichtsdatum = as.Date(Datum),
+         Bundesland = as.factor(Bundesland),
+         Altersgruppe = as.factor(Altersgruppe)) %>%
+  mutate(Weekday = as.factor(weekdays(Berichtsdatum, abbreviate = TRUE))) %>%
+  filter(!(Bundesland == "Bundesgebiet" | Altersgruppe == "00+")) %>%
+  filter(Weekday == "Mon") %>% # "Mon" bedeutet "Montag"
+  mutate(Berichtsdatum = Berichtsdatum - 1) %>%
+  arrange(-desc(Berichtsdatum)) %>%
+  mutate(Kalenderjahr = format(Berichtsdatum, format = "%Y"),
+         Kalenderwoche = strftime(Berichtsdatum, format = "%V")) %>%
+  mutate(Kalenderjahr = replace(Kalenderjahr, Kalenderwoche == "53", "2020")) %>%
+    filter(!(Kalenderjahr == "2021" & Kalenderwoche > "44")) %>%
+  mutate(Bundesland = str_replace_all(Bundesland, "ü", "ue")) %>% 
+  mutate(Bundesland = str_replace_all(Bundesland, "ä", "ae")) %>% 
+  mutate(Bundesland = str_replace_all(Bundesland, "ö", "oe")) %>% 
+  mutate(Bundesland = str_replace_all(Bundesland, "ß", "ss")) %>%
+  na.omit()%>% # Es gibt keine NAs.
+  select(Kalenderjahr, Kalenderwoche, Bundesland, Altersgruppe, '7T_Hospitalisierung_Faelle')
+
+colnames(hospitalisierung_clean)[which(names(hospitalisierung_clean) == "7T_Hospitalisierung_Faelle")] <- "Hospitalisierung"
+```
+
+Data "impfung" weekly cleaning
+```{r impfung_clean_sum_weekly, echo = F, message=FALSE}
+df_bundeslaender2 <- data.frame('Bundeslandnummer' = c("01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12", "13", "14", "15", "16", "17"), 
+                                'Bundesland' = c("Schleswig-Holstein",
+                                                      "Hamburg",
+                                                      "Niedersachsen",
+                                                      "Bremen",
+                                                      "Nordrhein-Westfalen",
+                                                      "Hessen",
+                                                      "Rheinland-Pfalz",
+                                                      "Baden-Wuerttemberg",
+                                                      "Bayern",
+                                                      "Saarland",
+                                                      "Berlin",
+                                                      "Brandenburg",
+                                                      "Mecklenburg-Vorpommern",
+                                                      "Sachsen",
+                                                      "Sachsen-Anhalt",
+                                                      "Thueringen",
+                                                 "Bundesressorts")
+)
+impfung_new <-
+  impfung %>%
+  mutate(IdLandkreis = as.character(LandkreisId_Impfort)) %>%
+  mutate(Bundeslandnummer = gsub('.{3}$', '', LandkreisId_Impfort))
+
+impfung_new <- dplyr::left_join(impfung_new, df_bundeslaender2, by = 'Bundeslandnummer')
+
+# Clean the Daten
+impfung_clean <-
+  impfung_new %>%
+  select(Impfdatum, Bundesland, Altersgruppe, Impfschutz, Impfanzahl = Anzahl) %>% 
+  mutate(Impfdatum = as.Date(Impfdatum),
+         Impfschutz = as.factor(Impfschutz),
+         Bundesland = as.factor(Bundesland),
+         Altersgruppe = as.factor(Altersgruppe)) %>%
+  arrange(-desc(Impfdatum)) %>%
+  filter(Impfschutz == "2") %>%
+  group_by(Impfdatum, Bundesland, Altersgruppe, Impfschutz) %>%
+  summarise(Impfanzahl = sum(Impfanzahl)) %>%
+  ungroup() %>%
+  filter(Impfdatum <= "2021-11-28")
+
+# 14 Tage nach zweiter Impfung kann man vollstaendig schutzt werden.
+impfung_vollstaendig <-
+  impfung_clean %>%
+  mutate(Impfdatum = Impfdatum + 14) %>%
+  arrange(-desc(Impfdatum))
+
+# In originale Daten gibt es nur die Anzahl von Impften nur fuer einen Tag, hier kann man die die Anzahl von Impften nur fuer diesen Tag und vorher wissen.
+date_begin <- as.Date("2021-01-10")
+date_end <- as.Date("2021-12-12")
+df_new2 <- data.frame()
+  for (datum in date_begin:date_end) {
+  df_new <- 
+  impfung_vollstaendig %>%
+  filter(Impfdatum <= datum)
+  df_new <-
+  df_new %>%
+  add_column(add_Date = as.Date(datum, origin="1970-01-01")) %>%
+  select(add_Date, Bundesland, Altersgruppe, Impfschutz, Impfanzahl) %>%
+  group_by(add_Date, Bundesland, Altersgruppe, Impfschutz) %>%
+  summarise(Impfanzahl = sum(Impfanzahl))
+  df_new2 <- rbind(df_new, df_new2)
+}
+
+impfung_clean_sum_daily <-
+  df_new2 %>%
+  mutate(Datum = add_Date) %>%
+  arrange(-desc(Datum)) %>%
+  ungroup() %>%
+  select(-c(add_Date, Impfschutz))
+
+impfung_clean_sum_weekly <- 
+  impfung_clean_sum_daily %>%
+  select(Datum, Bundesland, Altersgruppe, Impfanzahl) %>% 
+  arrange(-desc(Datum)) %>%
+  mutate(Weekday = as.factor(weekdays(Datum, abbreviate = TRUE))) %>%
+  filter(Weekday == "Sun") %>% # "Sonntag"
+  mutate(Kalenderjahr = format(Datum, format = "%Y"),
+         Kalenderwoche = strftime(Datum, format = "%V")) %>%
+  mutate(Kalenderjahr = replace(Kalenderjahr, Kalenderwoche == "53", "2020")) %>%
+  select(Kalenderjahr, Kalenderwoche, Bundesland, Altersgruppe, Impfanzahl)
+```
+
+Data "bevoelkerung" cleaning
+```{r bevoelkerung_clean}
+bevoelkerung_clean <-
+  bevoelkerung %>%
+  filter(!(location == "DE" | age_group == "00+")) %>%
+  select(location, age_group, population) %>%
+  mutate(Altersgruppe = as.factor(age_group),
+         Bundesland = as.factor(location),
+         Bevoelkerung = population) %>%
+  select(Bundesland, Altersgruppe, Bevoelkerung) %>%
+  mutate(Bundesland = str_replace_all(Bundesland, "ü", "ue")) %>% 
+  mutate(Bundesland = str_replace_all(Bundesland, "ä", "ae")) %>% 
+  mutate(Bundesland = str_replace_all(Bundesland, "ö", "oe")) %>% 
+  mutate(Bundesland = str_replace_all(Bundesland, "ß", "ss"))
+```
+
+Zusammenfassung von inzidenz nach Anmeldedatum, Hospitalisierung, impfquote und Lockdown
+```{r Zusammenfassung}
+# Zusammenfassung von inzidenz nach Anmeldedatum und Hospitalisierung
+inzidenzanmeldedatum_hosp <- merge(inzidenz_meldedatum_clean, hospitalisierung_clean, by = c("Kalenderjahr", "Kalenderwoche", "Bundesland", "Altersgruppe"), all = T)
+
+# "hospitalisierung" begiint am 01.03.2020, Sonntag (Kalenderwoche 9 des Jahres 2020). Man weisst nicht, ob vor Kalenderwoche 10 des Jahres 2020 die Information vollständig, dewegen nehmen wir die Informationen vor Kalenderwoche 10 des Jahres 2020 weg. Diese Datensatz beginnt Kalenderwoche 10 des Jahres 2020.
+inzidenzanmeldedatum_hosp <-
+  inzidenzanmeldedatum_hosp %>%
+  filter(!(Kalenderjahr == "2020" & Kalenderwoche < "10"))
+
+# ersetzen NA durch 0 in column "Hospitalisierung" und "Neuerkrankung"
+inzidenzanmeldedatum_hosp <-
+  inzidenzanmeldedatum_hosp %>%
+  mutate(Hospitalisierung = ifelse(is.na(Hospitalisierung), 0, Hospitalisierung),
+         Neuerkrankung = ifelse(is.na(Neuerkrankung), 0, Neuerkrankung))
+
+# add date und add season
+
+# Column "Datum" ist der Tag von letzter Woche(der Datunm von dem Sonntag)
+# Column "Jahreszeit": 
+# Spring: March 21 to June 20
+# Summer: June 21 to September 20
+# Autumn: September 21 to December 20
+# Winter: December 21 to March 20
+# Referenz: https://www.calendar-365.com/seasons.html
+
+# 2020
+
+inzidenzanmeldedatum_hosp2020 <-
+  inzidenzanmeldedatum_hosp %>%
+  filter(Kalenderjahr == "2020") %>%
+  add_column(Jahreszeit = case_when(
+.$Kalenderwoche == "01" | .$Kalenderwoche == "02" | .$Kalenderwoche == "03" | .$Kalenderwoche == "04" | .$Kalenderwoche == "05" | .$Kalenderwoche == "06" | .$Kalenderwoche == "07" | .$Kalenderwoche == "08" | .$Kalenderwoche == "09" | .$Kalenderwoche == "10" | .$Kalenderwoche == "11" | .$Kalenderwoche == "12" | .$Kalenderwoche == "52" | .$Kalenderwoche == "53" ~ "Winter",
+.$Kalenderwoche == "13" | .$Kalenderwoche == "14" | .$Kalenderwoche == "15" | .$Kalenderwoche == "16" | .$Kalenderwoche == "17" | .$Kalenderwoche == "18" | .$Kalenderwoche == "19" | .$Kalenderwoche == "20" | .$Kalenderwoche == "21" | .$Kalenderwoche == "22" | .$Kalenderwoche == "23" | .$Kalenderwoche == "24" | .$Kalenderwoche == "25" ~ "Fruehling",
+.$Kalenderwoche == "26" | .$Kalenderwoche == "27" | .$Kalenderwoche == "28" | .$Kalenderwoche == "29" | .$Kalenderwoche == "30" | .$Kalenderwoche == "31" | .$Kalenderwoche == "32" | .$Kalenderwoche == "33" | .$Kalenderwoche == "34" | .$Kalenderwoche == "35" | .$Kalenderwoche == "36" | .$Kalenderwoche == "37" | .$Kalenderwoche == "38" ~ "Sommer",
+.$Kalenderwoche == "39" | .$Kalenderwoche == "40" | .$Kalenderwoche == "41" | .$Kalenderwoche == "42" | .$Kalenderwoche == "43" | .$Kalenderwoche == "44" | .$Kalenderwoche == "45" | .$Kalenderwoche == "46" | .$Kalenderwoche == "47" | .$Kalenderwoche == "48" | .$Kalenderwoche == "49" | .$Kalenderwoche == "50" | .$Kalenderwoche == "51" ~ "Herbst")) %>%
+  mutate(Zwischenelement = paste(Kalenderjahr, Kalenderwoche, "7", sep = '-')) %>%
+  mutate(Datum = as.Date(Zwischenelement, format = "%Y-%U-%u")) %>%
+  mutate(Datum = replace(Datum, Kalenderwoche == "53" & Kalenderjahr == "2020", "2021-01-03")) %>%
+  select(-Zwischenelement)
+
+# 2021
+
+inzidenzanmeldedatum_hosp2021 <-
+  inzidenzanmeldedatum_hosp %>%
+  filter(Kalenderjahr == "2021") %>%
+  add_column(Jahreszeit = case_when(
+.$Kalenderwoche == "01" | .$Kalenderwoche == "02" | .$Kalenderwoche == "03" | .$Kalenderwoche == "04" | .$Kalenderwoche == "05" | .$Kalenderwoche == "06" | .$Kalenderwoche == "07" | .$Kalenderwoche == "08" | .$Kalenderwoche == "09" | .$Kalenderwoche == "10" | .$Kalenderwoche == "11" | .$Kalenderwoche == "51" | .$Kalenderwoche == "52" ~ "Winter",
+.$Kalenderwoche == "12" | .$Kalenderwoche == "13" | .$Kalenderwoche == "14" | .$Kalenderwoche == "15" | .$Kalenderwoche == "16" | .$Kalenderwoche == "17" | .$Kalenderwoche == "18" | .$Kalenderwoche == "19" | .$Kalenderwoche == "20" | .$Kalenderwoche == "21" | .$Kalenderwoche == "22" | .$Kalenderwoche == "23" | .$Kalenderwoche == "24" ~ "Fruehling",
+.$Kalenderwoche == "25" | .$Kalenderwoche == "26" | .$Kalenderwoche == "27" | .$Kalenderwoche == "28" | .$Kalenderwoche == "29" | .$Kalenderwoche == "30" | .$Kalenderwoche == "31" | .$Kalenderwoche == "32" | .$Kalenderwoche == "33" | .$Kalenderwoche == "34" | .$Kalenderwoche == "35" | .$Kalenderwoche == "36" | .$Kalenderwoche == "37" ~ "Sommer",
+.$Kalenderwoche == "38" | .$Kalenderwoche == "39" | .$Kalenderwoche == "40" | .$Kalenderwoche == "41" | .$Kalenderwoche == "42" | .$Kalenderwoche == "43" | .$Kalenderwoche == "44" | .$Kalenderwoche == "45" | .$Kalenderwoche == "46" | .$Kalenderwoche == "47" | .$Kalenderwoche == "48" | .$Kalenderwoche == "49" | .$Kalenderwoche == "50" ~ "Herbst")) %>%
+  mutate(Zwischenelement = paste(Kalenderjahr, Kalenderwoche, "7", sep = '-')) %>%
+  mutate(Datum = as.Date(Zwischenelement, format = "%Y-%U-%u") + 7) %>%
+  select(-Zwischenelement)
+
+inzidenzanmeldedatum_hosp_jahreszeit_datum <- rbind(inzidenzanmeldedatum_hosp2020, inzidenzanmeldedatum_hosp2021)
+
+# add Lockdown
+Covid19_Regelungen_new <-
+  Covid19_Regelungen %>%
+  mutate(Kalenderjahr = as.character(Jahr),
+         Kalenderwoche = as.character(KW),
+         Lockdown = as.factor(Lockdown)) %>%
+  select(Kalenderjahr, Kalenderwoche, Lockdown) %>%
+  mutate(Kalenderwoche = case_when(
+    Kalenderwoche == "1" ~ "01",
+    Kalenderwoche == "2" ~ "02",
+    Kalenderwoche == "3" ~ "03",
+    Kalenderwoche == "4" ~ "04",
+    Kalenderwoche == "5" ~ "05",
+    Kalenderwoche == "6" ~ "06",
+    Kalenderwoche == "7" ~ "07",
+    Kalenderwoche == "8" ~ "08",
+    Kalenderwoche == "9" ~ "09",
+    TRUE ~ Kalenderwoche
+    ))
+
+fin_datensatz <-
+  merge(inzidenzanmeldedatum_hosp_jahreszeit_datum, Covid19_Regelungen_new, by = c('Kalenderjahr', 'Kalenderwoche'), all.x = TRUE)
+
+fin_datensatz <-
+  fin_datensatz %>%
+  select(Datum, Kalenderjahr, Kalenderwoche, Hospitalisierung, Neuerkrankung, Bundesland, Altersgruppe, Jahreszeit, Lockdown)
+```
+
+Altersgruppe und Bundesland in mehreren Kategorien
+```{r Altersgruppe und Bundesland in mehreren Kategorien}
+# Bundesland in mehreren Kategorien
+list_of_bundesland <-
+  split(fin_datensatz, fin_datensatz$Bundesland)
+
+# Altersgruppe und Bundesland in mehreren Kategorien
+list_of_df <- lapply(list_of_bundesland, function(x) split(x, x$Altersgruppe))
+
+# Ansprechen über
+list_of_df$Bayern$`00-04`
+```
