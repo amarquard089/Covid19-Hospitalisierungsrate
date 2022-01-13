@@ -100,7 +100,7 @@ hospitalisierung_clean <-
          Altersgruppe = as.factor(Altersgruppe)) %>%
   mutate(Weekday = as.factor(weekdays(Berichtsdatum, abbreviate = TRUE))) %>%
   filter(!(Bundesland == "Bundesgebiet" | Altersgruppe == "00+")) %>%
-  filter(Weekday == "Mon") %>% # "Mon" bedeutet "Montag"
+  filter(Weekday == "Mo") %>% # "Mon" bedeutet "Montag"
   mutate(Berichtsdatum = Berichtsdatum - 1) %>%
   arrange(-desc(Berichtsdatum)) %>%
   mutate(Kalenderjahr = format(Berichtsdatum, format = "%Y"),
@@ -119,6 +119,7 @@ colnames(hospitalisierung_clean)[which(names(hospitalisierung_clean) == "7T_Hosp
 
 Data "impfung" weekly cleaning
 ```{r impfung_clean_sum_weekly, echo = F, message=FALSE}
+options(dplyr.summarise.inform = FALSE)
 df_bundeslaender2 <- data.frame('Bundeslandnummer' = c("01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12", "13", "14", "15", "16", "17"), 
                                 'Bundesland' = c("Schleswig-Holstein",
                                                       "Hamburg",
@@ -170,7 +171,7 @@ impfung_vollstaendig <-
 date_begin <- as.Date("2021-01-10")
 date_end <- as.Date("2021-12-12")
 df_new2 <- data.frame()
-  for (datum in date_begin:date_end) {
+for (datum in date_begin:date_end) {
   df_new <- 
   impfung_vollstaendig %>%
   filter(Impfdatum <= datum)
@@ -195,7 +196,7 @@ impfung_clean_sum_weekly <-
   select(Datum, Bundesland, Altersgruppe, Impfanzahl) %>% 
   arrange(-desc(Datum)) %>%
   mutate(Weekday = as.factor(weekdays(Datum, abbreviate = TRUE))) %>%
-  filter(Weekday == "Sun") %>% # "Sonntag"
+  filter(Weekday == "So") %>% # "Sonntag"
   mutate(Kalenderjahr = format(Datum, format = "%Y"),
          Kalenderwoche = strftime(Datum, format = "%V")) %>%
   mutate(Kalenderjahr = replace(Kalenderjahr, Kalenderwoche == "53", "2020")) %>%
@@ -301,6 +302,8 @@ fin_datensatz <-
 fin_datensatz <-
   fin_datensatz %>%
   select(Datum, Kalenderjahr, Kalenderwoche, Hospitalisierung, Neuerkrankung, Bundesland, Altersgruppe, Jahreszeit, Lockdown)
+
+# Abspeichern des Datensatzes
 ```
 
 Altersgruppe und Bundesland in mehreren Kategorien

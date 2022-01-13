@@ -1,0 +1,38 @@
+---
+author: "Alexander Marquard"
+title: "R Notebook"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(tibble)
+library(stringr)
+library(readr)
+library(tidyr)
+library(lubridate)
+library(tidyverse)
+library(mgcv)
+```
+
+```{r prep}
+final_df <- readRDS("../final_df.RDS")
+```
+
+```{r full Model}
+m_gam <- gam(Hospitalisierung ~ Neuerkrankung + Altersgruppe + Bundesland + 
+               s(index, bs = "ps", k = 50) + 
+               s(Kalenderwoche, bs = "cc", k = 50) +
+               Bundesland * Altersgruppe + Neuerkrankung * Altersgruppe + 
+               Neuerkrankung * Bundesland,
+             data = final_df,
+             method = "REML",
+             family = "nb")
+summary(m_gam)
+gam.check(m_gam)
+
+
+
+## Kein gutes Modell bisher
+```

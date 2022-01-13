@@ -47,6 +47,7 @@ compareDatesAndCleanup <- function(..., dfnames) {
 # Ergänze Jahreszeiten entsprechend der Monate/Kalenderwochen
 # input: df: dataframe/tibble 
 #       date.col.as.string: datum spalte als String
+#         expected Format: YYYY-MM-dd
 #       useWeeks: optional
 #       sep = seperator für tagesdaten (-.,|)
 # output:

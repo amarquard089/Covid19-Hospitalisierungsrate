@@ -74,10 +74,10 @@ class DataFetcher:
 def openWithSeleniumReturnContent(url, selector):
     browser = webdriver.Firefox()
     browser.get(url)
-    time.sleep(1)
+    time.sleep(5)
     btn = browser.find_element_by_css_selector(selector)
     webdriver.ActionChains(browser).click(btn).perform()
-    time.sleep(2)
+    time.sleep(5)
     content = browser.page_source
     browser.close()
     return content
