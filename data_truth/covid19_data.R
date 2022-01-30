@@ -10,8 +10,8 @@ setwd(paste(getwd(), "data_truth/", sep = "/"))
 
 ## Python Stuff #### 
 
-if (!require("reticulate")) install.packages("reticulate")
-reticulate::py_run_file("./fetchdata.py")
+# if (!require("reticulate")) install.packages("reticulate")
+# reticulate::py_run_file("./fetchdata.py")
 
 ## LMU ####
 

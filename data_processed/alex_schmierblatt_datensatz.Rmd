@@ -80,11 +80,12 @@ inzidenz_clean <-
   mutate(Kalenderjahr = replace(Kalenderjahr, Meldedatum == "2021-01-01", "2020")) %>%
   mutate(Kalenderjahr = replace(Kalenderjahr, Meldedatum == "2021-01-02", "2020")) %>%
   mutate(Kalenderjahr = replace(Kalenderjahr, Meldedatum == "2021-01-03", "2020")) %>%
+  mutate(Kalenderjahr = replace(Kalenderjahr, Kalenderwoche == "52" & Kalenderjahr == "2022", "2021")) %>%
+  filter(!is.na(Altersgruppe)) %>%
   select(Kalenderjahr, Kalenderwoche, Bundesland, Altersgruppe, Neuerkrankung, Meldedatum) %>%
-  group_by(Meldedatum, Kalenderjahr, Kalenderwoche, Bundesland, Altersgruppe) %>% 
+  group_by(Kalenderjahr, Kalenderwoche, Bundesland, Altersgruppe) %>% 
   summarise(Neuerkrankung = sum(Neuerkrankung)) %>%
   ungroup()
-
 ```
 
 Data "hospitalisierung" cleaning
@@ -116,7 +117,15 @@ inzidenz_clean$Altersgruppe <- as.factor(inzidenz_clean$Altersgruppe)
 hospitalisierung_clean$Altersgruppe <- as.factor(hospitalisierung_clean$Altersgruppe)
 colnames(hospitalisierung_clean)[6] <- "Meldedatum"
 
-inz_hosp_w_all_Age <- inner_join(inzidenz_clean, hospitalisierung_clean)
+inz_hosp_w_all_Age <- left_join(inzidenz_clean, hospitalisierung_clean)
+# ergänze NA Meldewochen
+inz_hosp_w_all_Age[is.na(inz_hosp_w_all_Age$Meldedatum),] <- 
+  inz_hosp_w_all_Age[is.na(inz_hosp_w_all_Age$Meldedatum),] %>%
+  mutate(Meldedatum = as.Date(paste(as.character(Kalenderjahr), 
+                                    as.character(Kalenderwoche), 
+                                    1, 
+                                    sep="-"), 
+                              "%Y-%W-%u") - 7)
 
 ## Ergänze fehlende Wochen in jedem Bundesland und jeder Altersgruppe
 

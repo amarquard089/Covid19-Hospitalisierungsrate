@@ -22,6 +22,7 @@ final_df <- readRDS("../final_df.RDS")
 
 ## Erstelle List mit Datensatz zu jedem Bundesland
 list_of_dfs <- split(final_df, as.factor(final_df$Bundesland))
+# bawü <- dplyr::filter(final_df, Bundesland == "Baden-Württemberg")
 ```
 
 ```{r boxplots}
@@ -30,6 +31,22 @@ lapply(list_of_dfs, function(x) {
        main = unique(x$Bundesland),
        ylab = "log(Hospitalisiert)",
        xlab = "Altersgruppen")
+})
+
+lapply(list_of_dfs, function(x) {
+  plot(log(x$Neuerkrankung + 1), log(x$Hospitalisierung + 1), 
+       main = unique(x$Bundesland),
+       ylab = "Hospitalisiert",
+       xlab = "Neuerkrankung",
+       col = x$Altersgruppe)
+})
+
+lapply(list_of_dfs, function(x) {
+  plot(x$index, log(x$Hospitalisierung + 1), 
+       main = unique(x$Bundesland),
+       ylab = "Hospitalisiert",
+       xlab = "Neuerkrankung",
+       col = x$Altersgruppe)
 })
 ```
 
@@ -48,16 +65,18 @@ list_of_dfs$Bayern <- list_of_dfs$Bayern %>%
   group_by(Altersgruppe) %>%
   mutate(index = row_number(Altersgruppe))
 
-bay_gam <- gam(Hospitalisierung ~ s(index, k = 50, bs = "ps") + s(Neuerkrankung, bs = "ps", k = 20) + Altersgruppe +
-                 s(Kalenderwoche, bs = "cc", k = 50) +
-                 s(Altersgruppe, bs = "fs", k = 5) + 
-                 ti(Altersgruppe, Neuerkrankung, bs = c("fs", "cs")),
+bay_gam <- gam(Hospitalisierung ~ Neuerkrankung * Altersgruppe +
+                 s(index, bs = "ps", k = 90) + 
+                 s(Kalenderwoche, bs = "cc", k = 30) +
+                 s(index, bs = "ps", by = Altersgruppe, k = 30),
                data = list_of_dfs$Bayern,
                method = "REML",
                family = "nb",
                knots = list(Kalenderwoche = c(0.5, 53.5)))
 summary(bay_gam)
 gam.check(bay_gam)
+plot(bay_gam)
+
 
 for (x in unique(list_of_dfs$Bayern$Altersgruppe)) {
   pdata <- list_of_dfs$Bayern %>% filter(Altersgruppe == x)
