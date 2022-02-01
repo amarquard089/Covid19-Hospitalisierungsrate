@@ -148,3 +148,9 @@ ggplot(final_df_wo_impfung) +
 dev.off()
 ```
 
+NEUE PLOTS
+
+```{r}
+
+```
+
