@@ -1,0 +1,274 @@
+---
+title: "alex_schmierblatt_datensatz"
+author: "Alexander Marquard / 11779957"
+date: "15 12 2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(tibble)
+library(stringr)
+library(readr)
+library(tidyr)
+library(lubridate)
+library(tidyverse)
+library(mgcv)
+source("./functions/funktionen.R")
+```
+
+orignal Datensatz
+```{r read data}
+inzidenz <- readRDS('../data_truth/RKI/infektionen.Rds')
+
+hospitalisierung <- readRDS('../data_truth/RKI/hospitalisierung.Rds')
+
+hospitalisierungnowcasting <- readRDS('../data_truth/RKI/hospitalisierung_adjustiert.Rds')
+
+impfung <- readRDS('../data_truth/RKI/impfungen.Rds')
+
+bevoelkerung <- readRDS('../data_truth/KIT/kit_bevoelkerung.Rds')
+
+Covid19_Regelungen <- readRDS('../data_truth/zusaetzlich/regelungen.Rds')
+```
+
+Data "inzidenz" nach Meldedatum cleaning
+```{r}
+#summary(inzidenz)
+# wechseln Bundeslandsnummer zu Bundeslandname
+df_bundeslaender <- data.frame('Bundeslandnummer' = as.character(seq(16)), 
+                                'Bundesland' = c("Schleswig-Holstein",
+                                                      "Hamburg",
+                                                      "Niedersachsen",
+                                                      "Bremen",
+                                                      "Nordrhein-Westfalen",
+                                                      "Hessen",
+                                                      "Rheinland-Pfalz",
+                                                      "Baden-Wuerttemberg",
+                                                      "Bayern",
+                                                      "Saarland",
+                                                      "Berlin",
+                                                      "Brandenburg",
+                                                      "Mecklenburg-Vorpommern",
+                                                      "Sachsen",
+                                                      "Sachsen-Anhalt",
+                                                      "Thueringen")
+                               )
+
+inzidenz_new <-
+  inzidenz %>%
+  mutate(IdLandkreis = as.character(IdLandkreis)) %>%
+  mutate(Bundeslandnummer = gsub('.{3}$', '', IdLandkreis))
+
+inzidenz_new <- dplyr::left_join(inzidenz_new, df_bundeslaender, by = 'Bundeslandnummer')
+
+inzidenz_clean <- 
+  inzidenz_new %>%
+  filter(!(Meldedatum == "2020-10-28" & Refdatum == "2020-01-19")) %>%
+  select(Bundesland, Altersgruppe, Geschlecht, Neuerkrankung = AnzahlFall, Meldedatum) %>% 
+  mutate(Meldedatum = as.Date(Meldedatum)) %>%
+  mutate(Altersgruppe = str_remove_all(Altersgruppe, "A")) %>% 
+  mutate(Altersgruppe = case_when(
+    Altersgruppe == "unbekannt" ~ NA_character_,
+    TRUE ~ Altersgruppe
+  )) %>%
+  arrange(-desc(Meldedatum)) %>%
+  mutate(Kalenderjahr = format(Meldedatum, format = "%Y"),
+         Kalenderwoche = strftime(Meldedatum, format = "%V")) %>%
+  relocate(c("Kalenderjahr", "Kalenderwoche", "Meldedatum", "Bundesland", "Altersgruppe", "Geschlecht", "Neuerkrankung")) %>%
+  mutate(Kalenderjahr = replace(Kalenderjahr, Meldedatum == "2021-01-01", "2020")) %>%
+  mutate(Kalenderjahr = replace(Kalenderjahr, Meldedatum == "2021-01-02", "2020")) %>%
+  mutate(Kalenderjahr = replace(Kalenderjahr, Meldedatum == "2021-01-03", "2020")) %>%
+  mutate(Kalenderjahr = replace(Kalenderjahr, Kalenderwoche == "52" & Kalenderjahr == "2022", "2021")) %>%
+  filter(!is.na(Altersgruppe)) %>%
+  select(Kalenderjahr, Kalenderwoche, Bundesland, Altersgruppe, Neuerkrankung, Meldedatum) %>%
+  group_by(Kalenderjahr, Kalenderwoche, Bundesland, Altersgruppe) %>% 
+  summarise(Neuerkrankung = sum(Neuerkrankung)) %>%
+  ungroup()
+```
+
+Data "hospitalisierung" cleaning
+```{r}
+# basierend auf alle Daten am Montag
+hospitalisierung_clean <- 
+  hospitalisierung %>%
+  select(Datum, Bundesland, Altersgruppe, '7T_Hospitalisierung_Faelle') %>% 
+  mutate(Berichtsdatum = as.Date(Datum)) %>%
+  mutate(Weekday = as.factor(weekdays(Berichtsdatum, abbreviate = TRUE))) %>%
+  filter(!(Bundesland == "Bundesgebiet" | Altersgruppe == "00+")) %>%
+  filter(Weekday == "Mo") %>% # "周一" bedeutet "Montag"
+  arrange(-desc(Berichtsdatum)) %>%
+  mutate(Kalenderjahr = format(Berichtsdatum, format = "%Y"),
+         Kalenderwoche = strftime(Berichtsdatum, format = "%V")) %>%
+  mutate(Kalenderjahr = replace(Kalenderjahr, Kalenderwoche == "53", "2020")) %>%
+  select(Kalenderjahr, Kalenderwoche, Bundesland, Altersgruppe, '7T_Hospitalisierung_Faelle', Berichtsdatum) %>%
+  mutate(Bundesland = str_replace_all(Bundesland, "ü", "ue")) %>% 
+  mutate(Bundesland = str_replace_all(Bundesland, "ä", "ae")) %>% 
+  mutate(Bundesland = str_replace_all(Bundesland, "ö", "oe")) %>% 
+  mutate(Bundesland = str_replace_all(Bundesland, "ß", "ss")) %>%
+  select(Kalenderjahr, Kalenderwoche, Bundesland, Altersgruppe, '7T_Hospitalisierung_Faelle', Berichtsdatum)
+
+colnames(hospitalisierung_clean)[which(names(hospitalisierung_clean) == "7T_Hospitalisierung_Faelle")] <- "Hospitalisierung"  
+```
+
+```{r Altersgruppen in mehreren Kategorien}
+inzidenz_clean$Altersgruppe <- as.factor(inzidenz_clean$Altersgruppe)
+hospitalisierung_clean$Altersgruppe <- as.factor(hospitalisierung_clean$Altersgruppe)
+colnames(hospitalisierung_clean)[6] <- "Meldedatum"
+
+inz_hosp_w_all_Age <- left_join(inzidenz_clean, hospitalisierung_clean)
+# ergänze NA Meldewochen
+inz_hosp_w_all_Age[is.na(inz_hosp_w_all_Age$Meldedatum),] <- 
+  inz_hosp_w_all_Age[is.na(inz_hosp_w_all_Age$Meldedatum),] %>%
+  mutate(Meldedatum = as.Date(paste(as.character(Kalenderjahr), 
+                                    as.character(Kalenderwoche), 
+                                    1, 
+                                    sep="-"), 
+                              "%Y-%W-%u") - 7)
+
+## Ergänze fehlende Wochen in jedem Bundesland und jeder Altersgruppe
+
+inz_hosp_w_all_Age <- inz_hosp_w_all_Age %>%
+  complete(nesting(Bundesland, Altersgruppe), Meldedatum = seq(min(Meldedatum), max(Meldedatum), by = "1 week"))
+
+## interpolate NA
+inz_hosp_w_all_Age <- inz_hosp_w_all_Age %>%
+  arrange(Meldedatum) %>%
+  mutate(Kalenderjahr = 
+           ifelse(is.na(Kalenderjahr), 
+                  format(Meldedatum, format = "%Y"), 
+                  Kalenderjahr),
+         Kalenderwoche = 
+           ifelse(is.na(Kalenderwoche), 
+                  strftime(Meldedatum, format = "%V"), 
+                  Kalenderwoche)) %>%
+  group_by(Bundesland, Altersgruppe) %>%
+  mutate(Neuerkrankung = 
+           ifelse(is.na(Neuerkrankung),
+                  round((ifelse(is.na(lead(Neuerkrankung, default = 0)), 0, 
+                                lead(Neuerkrankung, default = 0)) + 
+                           ifelse(is.na(lag(Neuerkrankung, default = 0)), 0, 
+                                  lag(Neuerkrankung, default = 0))) / 2), 
+                  Neuerkrankung),
+         Hospitalisierung = 
+           ifelse(is.na(Hospitalisierung), 
+                  round((ifelse(is.na(lead(Hospitalisierung, default = 0)), 0,
+                                lead(Hospitalisierung, default = 0)) + 
+                           ifelse(is.na(lag(Hospitalisierung, default = 0)), 0,
+                                  lag(Hospitalisierung, default = 0))) / 2), 
+                  Hospitalisierung))
+
+
+inz_hosp_w_all_Age$Jahreszeit <- add.Seasons(inz_hosp_w_all_Age, date.col.as.string = "Meldedatum", useWeeks = F, sep = "-")
+inz_hosp_w_all_Age$Jahreszeit <- as.factor(inz_hosp_w_all_Age$Jahreszeit)
+inz_hosp_w_all_Age$Kalenderjahr <- as.factor(inz_hosp_w_all_Age$Kalenderjahr)
+
+## Ergänze indizes
+
+inz_hosp_w_all_Age <- inz_hosp_w_all_Age %>%
+  group_by(Bundesland, Altersgruppe) %>%
+  mutate(index = row_number(Altersgruppe))
+
+## ergänze Kovariablen und korregiere Datentypen
+
+inz_hosp_w_all_Age$Bundesland <- as.factor(inz_hosp_w_all_Age$Bundesland)
+inz_hosp_w_all_Age$Kalenderwoche <- as.numeric(inz_hosp_w_all_Age$Kalenderwoche)
+inz_hosp_w_all_Age$log_hosp <- log(inz_hosp_w_all_Age$Hospitalisierung + 1)
+inz_hosp_w_all_Age$log_neuerk <- log(inz_hosp_w_all_Age$Neuerkrankung + 1)
+
+saveRDS(inz_hosp_w_all_Age, file = "./final_df.RDS")
+```
+
+
+
+
+####################################
+## Der Rest kann ignoriert werden ##
+####################################
+
+
+
+
+
+
+
+```{r Baden-Wuerttemberg}
+# Ausgehend von den Altersboxplots können die Gruppen 35-69, 60-79 und 80+ zusammengeführt werden
+levels(list_of_dfs$`Baden-Wuerttemberg`$Altersgruppe) <- c("00-04", "05-14", "15-34", "35+","35+","35+")
+```
+
+```{r Berlin}
+# Ausgehend von den Altersboxplots können die Gruppen 00-04, 05-14 zusammengeführt werden
+levels(list_of_dfs$Berlin$Altersgruppe) <- c("00-14", "00-14", "15-34", "35-59", "60-79", "80+")
+```
+
+```{r Brandenburg}
+# Erfordert weitere Analysen
+# Ausgehend von den Altersboxplots können die Gruppen 00-04, 05-14 zusammengeführt werden
+
+```
+
+```{r Bremen}
+# Erfordert weitere Analysen
+# Ausgehend von den Altersboxplots können die Gruppen 00-04, 05-14 zusammengeführt werden
+
+```
+
+```{r Hamburg}
+# Erfordert weitere Analysen
+```
+
+```{r Hessen}
+# Ausgehend von den Altersboxplots können die Gruppen 00-04, 05-14 zusammengeführt werden
+# sowie die Gruppen "35-59" "60-79" "80+"  
+levels(list_of_dfs$Hessen$Altersgruppe) <- c("00-14", "00-14", "15-34", "35+", "35+", "35+")
+
+```
+
+```{r Mecklenburg}
+# Ausgehend von den Altersboxplots können die Gruppen 00-04, 05-14 zusammengeführt werden
+# sowie 60-79 und 80+
+levels(list_of_dfs$`Mecklenburg-Vorpommern`$Altersgruppe) <- c("00-14", "00-14", "15-34", "35-59", "60+", "60+" )
+```
+
+```{r Niedersachen}
+# Ausgehend von den Altersboxplots können die Gruppen "35-59" "60-79"zusammengeführt werden
+
+```
+
+```{r Nordreihn-Westfalen}
+
+```
+
+```{r Rheinland-Pfalz}
+
+```
+
+```{r Saarland}
+
+```
+
+```{r Sachsen}
+
+```
+
+```{r Sachsen-Anhalt}
+
+```
+
+```{r Schleswig-Holstein}
+
+```
+
+```{r Thueringen}
+
+```
+
+```{r }
+
+```
+
+```{r }
+
+```

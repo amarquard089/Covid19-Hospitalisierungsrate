@@ -1,0 +1,133 @@
+---
+title: "Plots für Präsentation"
+author: "Johannes Pfeifer (12129959)"
+date: "6 12 2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r Plot 1}
+library(tidyverse)
+library(ggpubr)
+
+### Inzidenz der Krankenhäuser (Hospitalisierung) nach Alter und Impfstatus:
+
+## Datensatz: inzidenz_hosp
+
+inzidenz_hosp <- readRDS("../daten/inzidenz_hosp.Rds")
+
+## Alter 12 - 17 Jahre:
+
+# Gefilterter Datensatz mit besseren Variablennamen:
+
+inzidenz_hosp_bis17jahre <- inzidenz_hosp %>%
+  select("Meldewoche", "Ungeimpfte 12-17 Jahre", "Vollständig Geimpfte  12-17 Jahre")
+
+colnames(inzidenz_hosp_bis17jahre) <- c("meldewoche", "ungeimpft", "geimpft")
+
+# Plot: 
+
+inzidenz_hosp_bis17jahre_plot <- ggplot() + 
+  geom_line(data = inzidenz_hosp_bis17jahre, 
+            aes(x = meldewoche, y = ungeimpft, colour = "Ungeimpft"), size = 1.25) + 
+  geom_line(data = inzidenz_hosp_bis17jahre, 
+            aes(x = meldewoche, y = geimpft, colour = "Geimpft"), size = 1.25) + 
+  scale_color_manual(values = c("#a1d76a", "#e9a3c9")) +
+  xlab("Meldewoche") + ylab("Inzidenz") + ggtitle("12 - 17 Jahre") + ylim(0, 15) + 
+  labs(color = "Impfstatus") + 
+  theme_minimal() + 
+  theme(legend.key.size = unit(2, "cm"), text = element_text(size = 25))
+
+
+## Alter 18 - 59 Jahre:
+
+# Gefilterter Datensatz mit besseren Variablennamen:
+
+inzidenz_hosp_bis59jahre <- inzidenz_hosp %>%
+  select("Meldewoche", "Ungeimpfte 18-59 Jahre", "Vollständig Geimpfte  18-59 Jahre")
+
+colnames(inzidenz_hosp_bis59jahre) <- c("meldewoche", "ungeimpft", "geimpft")
+
+# Plot: 
+
+inzidenz_hosp_bis59jahre_plot <- ggplot() + 
+  geom_line(data = inzidenz_hosp_bis59jahre, 
+            aes(x = meldewoche, y = ungeimpft, colour = "Ungeimpft"), size = 1.25) + 
+  geom_line(data = inzidenz_hosp_bis59jahre, 
+            aes(x = meldewoche, y = geimpft, colour = "Geimpft"), size = 1.25) +
+  scale_color_manual(values = c("#a1d76a", "#e9a3c9")) +
+  xlab("Meldewoche") + ylab("") + ggtitle("18 - 59 Jahre") + ylim(0, 15) + 
+  labs(color = "Impfstatus") + 
+  theme_minimal() + 
+  theme(legend.key.size = unit(2, "cm"), text = element_text(size = 25))
+
+
+## Alter 60+ Jahre:
+
+# Gefilterter Datensatz mit besseren Variablennamen:
+
+inzidenz_hosp_ab60jahre <- inzidenz_hosp %>%
+  select("Meldewoche", "Ungeimpfte 60+ Jahre", "Vollständig Geimpfte 60+ Jahre")
+
+colnames(inzidenz_hosp_ab60jahre) <- c("meldewoche", "ungeimpft", "geimpft")
+
+# Plot:
+
+inzidenz_hosp_ab60jahre_plot <- ggplot() + 
+  geom_line(data = inzidenz_hosp_ab60jahre, 
+            aes(x = meldewoche, y = ungeimpft, colour = "Ungeimpft"), size = 1.25) + 
+  geom_line(data = inzidenz_hosp_bis59jahre, 
+            aes(x = meldewoche, y = geimpft, colour = "Geimpft"), size = 1.25) +
+  scale_color_manual(values = c("#a1d76a", "#e9a3c9")) +
+  xlab("Meldewoche") + 
+  ylab("") +
+  ggtitle("60+ Jahre") + 
+  ylim(0, 15) + 
+  labs(color = "Impfstatus") + 
+  theme_minimal() + 
+  theme(legend.key.size = unit(2, "cm"), text = element_text(size = 25))
+
+## Finaler Plot:
+
+combined_inzidenz_plot <- ggarrange(inzidenz_hosp_bis17jahre_plot, inzidenz_hosp_bis59jahre_plot, inzidenz_hosp_ab60jahre_plot, common.legend = T, ncol = 3)
+# combined_inzidenz_plot <- 
+#   annotate_figure(combined_inzidenz_plot, 
+#                   top = text_grob("Inzidenz der hospitalisierten Covid-19 Fälle 2021 in Deutschland",
+#                                   size = 20))              
+
+png(filename="../Bilder/Inzidenz_Impfung.png", width= 2000, height = 900)
+
+combined_inzidenz_plot
+
+dev.off()
+```
+
+```{r Plot 2}
+# Wöchentliche Neuerkrankungen seit Beginn der Pandemie mit Blick auf Lockdown
+
+# Datensatz: inzidenznachAnmeldedatum_hosp_impf_lock (qian_datensatz)
+sum_lockdown <- fin_datensatz %>%
+  select(Jahrwoche, Hospitalisierung, Lockdown) %>%
+  group_by(Jahrwoche, Lockdown) %>%
+  summarise(sum(Hospitalisierung))
+
+png(filename="../Bilder/Hospitalisierung_nach_Lockdown.png", width = 2000, height = 900)
+
+ggplot(sum_lockdown, aes(x = Jahrwoche, y = `sum(Hospitalisierung)`, fill = Lockdown)) + 
+  geom_col() + 
+  scale_x_discrete(breaks = sum_lockdown$Jahrwoche[c(1, 52, 98)]) + 
+  ylab("Hospitalisierungen") +
+  theme_minimal() + 
+  theme(legend.title = element_blank()) +
+  theme(legend.key.size = unit(1, "cm"), text = element_text(size = 25)) + 
+  scale_fill_manual(labels = c("Kein Lockdown", "Lockdown"), values = c("#d8b365", "#5ab4ac"))
+
+dev.off()
+
+# hosp_lock_plot <- annotate_figure(hosp_lock_plot, top = text_grob("Absolute Anzahl der Hospitalisierungen seit Beginn der Pandemie", size = 16))
+# hosp_lock_plot
+```

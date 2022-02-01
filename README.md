@@ -14,36 +14,55 @@ Statistisches Praktikum. Thema: Covid 19 - Vorhersage der Hospitalisierungsrate
 - [Covid19Trends-RKI](https://www.rki.de/DE/Content/InfAZ/N/Neuartiges_Coronavirus/Situationsberichte/COVID-19-Trends/COVID-19-Trends.html?__blob=publicationFile#/home)
 - [RKI-Github](https://github.com/orgs/robert-koch-institut/repositories)
 
-## Arbeit mit Github
 
-1. Open R Studio
-2. Click on File
-3. Click on New Project...
-4. Click on Version Control
-5. Goto Github and open this Repo
-6. Click on Code (green Button)
-7. Copy HTTPS Url
-8. Paste it into Repository in your RStudio window, that should still show which repository you would like to clone
-9. Click Save (or Next)
-10. Done
+## How to
+
+Bitte nur data_processed für Auswertungen nutzen. Hier werden finale Datensätze 
+bereitsgestellt.
+Einlesen des finalen Datensatzes über `readRDS(...)` 
+
+Bitte ebenfalls sicherstellen, das im richtigen working directory gearbeitet
+wird.
+Hierzu die entsprechenden Readmes in den Ordnern lesen.
+
 
 ## Ordnerhierarchie
 
-- ### Daten
+- ### Data_truth
+  
+  - Beinhaltet unveränderte Daten und Parser um entsprechende Daten zu erhalten
+  
+- ### Data_processed
+  
+  - Beinhaltet Änderungen an den Daten (z.B. erstellen eines neues Datensatzes @Qian)
+  
+  - ### (Unterordner) models
+  
+  - Beinhaltet verschiedene Modelle basierend auf den processed Daten
+  
+- ### data_analysis
+  
+  - Beinhaltet ausschließlich analysen (deskriptiv)
+  
+  - ### (Unterordner) Bilder
+    
+    - Ort zum Abspeichern der Bilder aus Daten Analysen
+  
+- ### documentation
+  
+  - Beinhaltet Dokumentation
 
-  - Frageboge, Codebuch und Regionskürzel. Die .Rds wird **IMMER** von github ignoriert und nicht hochgeladen (Verschwiegenheit)
+- ### Praesentation
 
-- ### Präsentation
+  - Powerpoint, PDF
+  
+- ### Abgabe
 
-  - Powerpoint, PDF, Auswertung (erst ganz zum Schluss)
+  - Order für die Abgabe. Alle relevanten Dateien sollten hier rein
 
-- ### Auswertungen
+## Grafiken
 
-  - Auswertungen betrefflich unseres Themas. Nach Themen geordnet
-
-- ### Grafiken
-
-  - Alle Grafiken (Grafiken sollten separat gespeichert werden)
+  - Grafiken werden separat gespeichert
 
     Dafür kann in R folgender Befehl genutzt werden:
 
@@ -60,43 +79,4 @@ Statistisches Praktikum. Thema: Covid 19 - Vorhersage der Hospitalisierungsrate
     hist(Temperature, col="gold")
     dev.off()
     ```
-
-- ### Abgabe
-
-  - Order für die Abgabe. Alle relevanten Dateien sollten hier rein
-
-## Gewünschte Aufgaben
-
-Johannes
-- SEIR
-
-Phu
-- SEIR
-
-Qian
-- GAM
-
-Alex
-- GAM/GAM with fixed Effects
-
-## Einteilung
-
-
-## Todo
-
-09.11:
-- Git/Github besprechen
-
-16.11:
-Jeder stellt Modelle vor für
-- Inzidenz prediction
-- hospitalisierungsprediction
-- Datensatz: wie könnte der aussehen? (Was sind unsere kovariablen?)
-mit Quelle
-
-
-
-
-
-
-
+    
