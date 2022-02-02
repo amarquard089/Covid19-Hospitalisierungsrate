@@ -32,27 +32,12 @@ lapply(list_of_dfs, function(x) {
        ylab = "log(Hospitalisiert)",
        xlab = "Altersgruppen")
 })
-
-lapply(list_of_dfs, function(x) {
-  plot(log(x$Neuerkrankung + 1), log(x$Hospitalisierung + 1), 
-       main = unique(x$Bundesland),
-       ylab = "Hospitalisiert",
-       xlab = "Neuerkrankung",
-       col = x$Altersgruppe)
-})
-
-lapply(list_of_dfs, function(x) {
-  plot(x$index, log(x$Hospitalisierung + 1), 
-       main = unique(x$Bundesland),
-       ylab = "Hospitalisiert",
-       xlab = "Neuerkrankung",
-       col = x$Altersgruppe)
-})
 ```
 
 ```{r Bayern}
-# Ausgehend von den Altersboxplots können die Gruppen 35-69, 60-79 und 80+ zusammengeführt werden
-levels(list_of_dfs$Bayern$Altersgruppe) <- c("00-04", "05-14", "15-34", "35+","35+","35+")
+# Ausgehend von den Altersboxplots können die Gruppen 00-04 und 05-14 sowie 
+# 35-69, 60-79 und 80+ zusammengeführt werden
+levels(list_of_dfs$Bayern$Altersgruppe) <- c("00-14", "00-14", "15-34", "35+","35+","35+")
 
 list_of_dfs$Bayern <- list_of_dfs$Bayern %>%
   group_by(Meldedatum, Kalenderjahr, Kalenderwoche, Altersgruppe, Jahreszeit) %>%
