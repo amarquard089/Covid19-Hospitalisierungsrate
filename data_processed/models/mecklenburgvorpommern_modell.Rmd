@@ -49,7 +49,7 @@ list_of_dfs$`Mecklenburg-Vorpommern` <- list_of_dfs$`Mecklenburg-Vorpommern` %>%
   mutate(index = row_number(Altersgruppe))
 
 meckgvor_gam <- gam(Hospitalisierung ~
-                 Altersgruppe +
+                 Altersgruppe * Neuerkrankung +
                  s(index, bs = "ps", k = 90) + 
                  s(Neuerkrankung, bs = "ps", k = 30) +
                  s(Neuerkrankung, by = Altersgruppe, bs = "ps", k = 30) +
