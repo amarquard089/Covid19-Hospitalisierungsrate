@@ -66,6 +66,7 @@ inzidenz_new <- dplyr::left_join(inzidenz_new, df_bundeslaender, by = 'Bundeslan
 inzidenz_clean <- 
   inzidenz_new %>%
   filter(!(Meldedatum == "2020-10-28" & Refdatum == "2020-01-19")) %>%
+  filter(Meldedatum <= "2022-01-23") %>%
   select(Bundesland, Altersgruppe, Geschlecht, Neuerkrankung = AnzahlFall, Meldedatum) %>% 
   mutate(Meldedatum = as.Date(Meldedatum)) %>%
   mutate(Altersgruppe = str_remove_all(Altersgruppe, "A")) %>% 
@@ -98,10 +99,12 @@ hospitalisierung_clean <-
   mutate(Weekday = as.factor(weekdays(Berichtsdatum, abbreviate = TRUE))) %>%
   filter(!(Bundesland == "Bundesgebiet" | Altersgruppe == "00+")) %>%
   filter(Weekday == "Mo") %>% # "周一" bedeutet "Montag"
+  mutate(Berichtsdatum = Berichtsdatum - 1) %>%
   arrange(-desc(Berichtsdatum)) %>%
   mutate(Kalenderjahr = format(Berichtsdatum, format = "%Y"),
          Kalenderwoche = strftime(Berichtsdatum, format = "%V")) %>%
   mutate(Kalenderjahr = replace(Kalenderjahr, Kalenderwoche == "53", "2020")) %>%
+  mutate(Kalenderjahr = replace(Kalenderjahr, Kalenderwoche == "52" & Kalenderjahr == "2022", "2021")) %>%
   select(Kalenderjahr, Kalenderwoche, Bundesland, Altersgruppe, '7T_Hospitalisierung_Faelle', Berichtsdatum) %>%
   mutate(Bundesland = str_replace_all(Bundesland, "ü", "ue")) %>% 
   mutate(Bundesland = str_replace_all(Bundesland, "ä", "ae")) %>% 
@@ -118,21 +121,22 @@ hospitalisierung_clean$Altersgruppe <- as.factor(hospitalisierung_clean$Altersgr
 colnames(hospitalisierung_clean)[6] <- "Meldedatum"
 
 inz_hosp_w_all_Age <- left_join(inzidenz_clean, hospitalisierung_clean)
+
 # ergänze NA Meldewochen
 inz_hosp_w_all_Age[is.na(inz_hosp_w_all_Age$Meldedatum),] <- 
   inz_hosp_w_all_Age[is.na(inz_hosp_w_all_Age$Meldedatum),] %>%
   mutate(Meldedatum = as.Date(paste(as.character(Kalenderjahr), 
                                     as.character(Kalenderwoche), 
-                                    1, 
+                                    7, 
                                     sep="-"), 
-                              "%Y-%W-%u") - 7)
+                              "%Y-%W-%u"))
 
 ## Ergänze fehlende Wochen in jedem Bundesland und jeder Altersgruppe
 
 inz_hosp_w_all_Age <- inz_hosp_w_all_Age %>%
   complete(nesting(Bundesland, Altersgruppe), Meldedatum = seq(min(Meldedatum), max(Meldedatum), by = "1 week"))
 
-## interpolate NA
+## interpolate NA with 0
 inz_hosp_w_all_Age <- inz_hosp_w_all_Age %>%
   arrange(Meldedatum) %>%
   mutate(Kalenderjahr = 
@@ -146,17 +150,11 @@ inz_hosp_w_all_Age <- inz_hosp_w_all_Age %>%
   group_by(Bundesland, Altersgruppe) %>%
   mutate(Neuerkrankung = 
            ifelse(is.na(Neuerkrankung),
-                  round((ifelse(is.na(lead(Neuerkrankung, default = 0)), 0, 
-                                lead(Neuerkrankung, default = 0)) + 
-                           ifelse(is.na(lag(Neuerkrankung, default = 0)), 0, 
-                                  lag(Neuerkrankung, default = 0))) / 2), 
+                  0,
                   Neuerkrankung),
          Hospitalisierung = 
            ifelse(is.na(Hospitalisierung), 
-                  round((ifelse(is.na(lead(Hospitalisierung, default = 0)), 0,
-                                lead(Hospitalisierung, default = 0)) + 
-                           ifelse(is.na(lag(Hospitalisierung, default = 0)), 0,
-                                  lag(Hospitalisierung, default = 0))) / 2), 
+                  0, 
                   Hospitalisierung))
 
 
@@ -177,8 +175,21 @@ inz_hosp_w_all_Age$Kalenderwoche <- as.numeric(inz_hosp_w_all_Age$Kalenderwoche)
 inz_hosp_w_all_Age$log_hosp <- log(inz_hosp_w_all_Age$Hospitalisierung + 1)
 inz_hosp_w_all_Age$log_neuerk <- log(inz_hosp_w_all_Age$Neuerkrankung + 1)
 
+# ergänze bevölkerung
+bevoelkerung <- bevoelkerung %>% filter(age_group != "00+") %>% 
+  mutate(Altersgruppe = as.factor(age_group), Bundesland = location) %>%
+  mutate(Bundesland = str_replace_all(Bundesland, "ü", "ue")) %>% 
+  mutate(Bundesland = str_replace_all(Bundesland, "ä", "ae")) %>% 
+  mutate(Bundesland = str_replace_all(Bundesland, "ö", "oe")) %>% 
+  mutate(Bundesland = str_replace_all(Bundesland, "ß", "ss")) %>%
+  select(Bundesland, Altersgruppe, population)
+
+bevoelkerung$Bundesland[bevoelkerung$Bundesland == "Sachen-Anhalt"] <- "Sachsen-Anhalt"
+
+inz_hosp_w_all_Age <- left_join(inz_hosp_w_all_Age, bevoelkerung, by = c("Bundesland", "Altersgruppe"))
+
 saveRDS(inz_hosp_w_all_Age, file = "./final_df.RDS")
-```
+
 
 
 

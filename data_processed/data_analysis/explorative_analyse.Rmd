@@ -1,0 +1,316 @@
+---
+title: "Explorative Analyse"
+author: "Alexander Marquard / 11779957"
+date: "2/12/2022"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(feasts)
+```
+
+```{r prep}
+final_df <- readRDS("../final_df.RDS")
+```
+
+Wie die Hospitalisierung funktioniert:
+Die hospitalisierten Covid-19 Fälle werden zeitlich nach Meldedatum ausgewiesen.
+Je nach Meldehistorie kann das Meldedatum vor, zeitgleich oder nach dem
+Hospitalisierungsdatum liegen. 
+Vor ist z.B. der Fall, wenn eine Person wegen einem anderen Grund hospitalisiert 
+wird und Corona erst im Krankenhaus festgestellt wird. In diesem Fall wird 
+der Fall an das zuständige Gesundheitsamt übermittelt und das Meldedatum ist somit 
+später, als das Hispitalisierungsdatum.
+[https://github.com/robert-koch-institut/COVID-19-Hospitalisierungen_in_Deutschland#zeitlicher-bezug-der-hospitalisierten-covid-19-f%C3%A4lle]
+Häufig jedoch liegt das Meldedatum und das Hospitalisierungsdatum eng beieinander.
+Erfolgt die Hospitalisierung mehr als 7 Tage nach der Meldung, dann werden diese 
+Fälle nachgemeldet.
+(grafisch in PP)
+
+Bezüglich dem räumlichen Aspekt bei Meldungen und Hospitalisierungen gilt folgendes:
+I.d.R. erfassen die Gesundheitsämter die betroffenen Personen deren Wohnort in
+ihrem Zuständigkeitsbereich liegt.
+Für München wäre das also z.B. (Gesundheitsamt). Somit wird jeder positiver Fall,
+auch wenn er in einem anderen Bundesland stattfand, z.B. Reisende, an das 
+Gesundheitsamt übermittelt, welches Zuständigkeit über München hat.
+Es gibt allerdings Ausnahmen:
+Ist eine betroffene Person in Niedersachsen wohnhaft, wird aber in Hamburg
+hospitalisiert, dann erfolgt die Zuordnung zum Bundesland Niedersachsen.
+(grafisch PP)
+[https://github.com/robert-koch-institut/COVID-19-Hospitalisierungen_in_Deutschland#geografischer-bezug-der-hospitalisierten-covid-19-f%C3%A4lle]
+
+Die Frage die sich dabei sofort stellt ist. Unterscheiden sich die Hospitaliserungs-
+raten bezogen auf die Altersgruppen in den einzelnen Bundesländern überhaupt?
+
+```{r hosprate bundesland alter}
+p_bl_age <- final_df %>%
+  mutate(hosprate = Hospitalisierung / (Neuerkrankung + 1))
+
+ggplot(p_bl_age) +
+  geom_line(aes(x = Meldedatum, y = hosprate, col = Bundesland)) +
+  facet_wrap(~Altersgruppe) + theme_minimal()
+
+
+```
+Wie zu sehen ist, gibt es deutliche Unterschiede bezüglich der Hospitalisierungs-
+rate in den einzelnen Bundesländern, bedingt auf das Alter.
+Wie kann das erklärt werden?
+Ein Aspekt könnte sein, dass die Betrachtung von wöchentlichen Daten zu fein ist.
+
+```{r}
+p_monthly <- final_df %>%
+  mutate(month = strftime(Meldedatum, format = "%m")) %>%
+  group_by(Bundesland, Altersgruppe, month, Kalenderjahr) %>%
+  summarise(Hospitalisierung = sum(Hospitalisierung),
+            Neuerkrankung = sum(Neuerkrankung)) %>%
+  mutate(hosprate = Hospitalisierung / (Neuerkrankung + 1))
+
+ggplot(p_monthly) +
+  geom_line(aes(x = as.Date(paste("01", month, Kalenderjahr, sep = "-"), format = "%d-%m-%Y"), y = hosprate, col = Bundesland)) +
+  facet_wrap(~Altersgruppe) +
+  xlab("Datum") + ylab("Hospitalisierungsrate") + theme_minimal()
+```
+Hier zu sehen ist, dass die Unterschiede zwischen den Bundesländern, bedingt
+auf das Alter nicht mehr so stark ausfallen.
+Allerdings scheinen die Hospitalisierungszahlen, bedingt auf die höhe der
+Infektionszahlen trotzdem Abhängig vom jeweiligen Bundesland zu sein. 
+Somit ist eine differenzierte Betrachtung der Bundesländer naheliegend.
+
+Der Unterschied bzgl der Altersgruppen ist sofort ersichtlich und geht ebenfalls
+aus zahlreichen Studien hervor.
+
+
+Variablen in dem Datensatz:
+Das Meldedatum ergibt sich aus dem Datum bei Hospitalisierung und Meldedatum 
+bei Infektion.
+Das Datum des Hospitalisierungsdatensatzes entspricht dem Berichtsdatum der 
+7-Tage Hospitalisierungsinzidenz.
+Das Berichtsdatum ist das Datum, an welchem die 7-Tages-Inzidenz tagesaktuell
+vom RKI berichtet wird. Dabei gilt das gleiche Verhalten wie für das Meldedatum.
+Zum Berichtsdatum werden also alle Fälle vom RKI kommuniziert, die in den 
+letzten 7 Tagen vorgefallen sind.
+Somit können wir schlussfolgenern, dass alle hospitalisierten Fälle der letzten 
+7 Tage, zum Berichtsdatum, ebenfalls als positiv getestet an die Gesundheitsämter
+übermittelt wurden.
+Sollte die Hospitalisierung später als 7 Tage stattfinden, so wird der Zahl 
+entsprechend nachgemeldet.
+Da es sich um einen aktualisierten Datensatz handelt können wir also jede Infektion
+und jede Hospitalisierung eindeutig einer Woche zuordnen, wodurch sich 
+die Hospitalisierungsrate als Hosp_i/Neuerk_i i = 1,...,n ergibt,
+wobei i die entsprechende Woche seit Beginn der Corona-Pandemie darstellt.
+In anderen Worten, sämtliche Hospitalisierungen können eindeutig den Infektionen
+innerhalb einer Woche zugeordnet werden, und somit ergeben sich die Hospitalisierungen
+nicht aus den Infektionen aus unterschiedlichen Wochen, sondern aus genau einer.
+
+Als nächstes wollen wir uns einzelne Kohorten anschauen und wie diese die 
+Hospitalisierung beeinflussen. 
+Es ist allgemein bekannt, dass Kinder (5-14) und junge Erwachsene weniger stark
+zur Hospitalisierungszahl beitragen, wohingegen die ältere Bevölkerung eher hospitalisiert
+wird, aufgrund eines schweren Krankheitsverlaufs. 
+Auch die Ansteckung ist verschoben, da sich Kinder und junge Erwachsene 
+eher in gesellschaftlichen Interaktionen (Schule, Arbeit, etc.) anstecken und
+sich hier Ausbrüche entwickeln. Diese allerdings erst im Verlauf die ältere 
+Bevölkerung anstecken.
+So stand 2020 die Inzidenz bei Kindern und das Vorkommen von Ausbrüchen in 
+Schulen in einem engen Zusammenhang mit der Inzidenz in der Allgemeinbevölkerung
+[https://link.springer.com/article/10.1007/s00103-021-03391-0]
+Mit der Verbreitung der leichter übertragbaren besorgniserregenden Virusvariante 
+Alpha (B.1.1.7) ab Anfang 2021 erhöhten sich die Inzidenz bei Kindern im 
+Kindergarten- und Schulalter und die Anzahl der Ausbrüche in Schulen und in der 
+Kinderbetreuung.
+[https://link.springer.com/article/10.1007/s00103-021-03391-0]
+
+
+```{r }
+p1 <- final_df
+
+levels(p1$Altersgruppe) <- c("00-04", "05-59", "05-59", "05-59", "60+", "60+")
+p1 <- p1 %>%
+  group_by(Bundesland, Altersgruppe, Meldedatum, Kalenderjahr, Kalenderwoche) %>%
+  summarise(Neuerkrankung = sum(Neuerkrankung),
+            Hospitalisierung = sum(Hospitalisierung)) %>%
+  summarise(hosprate = (Hospitalisierung) / (Neuerkrankung + 1))
+
+ggplot(p1) +
+  geom_line(aes(x = Meldedatum, y = hosprate, col = Altersgruppe)) +
+  facet_wrap(~Bundesland)
+
+p2 <- final_df
+levels(p2$Altersgruppe) <- c("00-04", "05-59", "05-59", "05-59", "60+", "60+")
+p2 <- p2 %>%
+  group_by(Bundesland, Altersgruppe, Meldedatum, Kalenderjahr, Kalenderwoche) %>%
+  summarise(Neuerkrankung = sum(Neuerkrankung),
+            Hospitalisierung = sum(Hospitalisierung))
+
+ggplot(p2) +
+  geom_line(aes(x = Meldedatum, y = Neuerkrankung, col = Altersgruppe)) +
+  facet_wrap(~Bundesland)
+
+acf(final_df$Hospitalisierung[final_df$Bundesland == "Bayern"])
+pacf(final_df$Hospitalisierung[final_df$Bundesland == "Bayern"])
+```
+
+```{r test}
+p_bydate <- final_df %>%
+  group_by(Meldedatum) %>%
+  summarise(Hospitalisierung = sum(Hospitalisierung),
+            Neuerkrankung = sum(Neuerkrankung))
+
+p_ts <- as.ts(data.frame(Hospitalisierung = p_bydate$Hospitalisierung))
+p_ts
+plot.ts(p_ts, plot.type = "multiple", main = " Hospitaliserungen",
+        xlab = "Wochen seit Beginn")
+
+p_test <- arima(p_ts, order = c(0, 1, 1))
+p_test
+p_test_fitted <- p_ts - residuals(p_test) 
+ts.plot(p_ts)
+points(p_test_fitted, type = "l", col = 2, lty = 2)
+
+
+p_bydate <- final_df %>%
+  group_by(Meldedatum, Altersgruppe) %>%
+  summarise(Hospitalisierung = sum(Hospitalisierung),
+            Neuerkrankung = sum(Neuerkrankung))
+
+p_ts <- as.ts(data.frame(Hospitalisierung = p_bydate$Hospitalisierung, Altersgruppe = p_bydate$Altersgruppe))
+p_ts
+plot.ts(p_ts, plot.type = "multiple", main = " Hospitaliserungen",
+        xlab = "Wochen seit Beginn")
+
+p_test <- arima(p_ts, order = c(0, 1, 1))
+p_test
+p_test_fitted <- p_ts - residuals(p_test) 
+ts.plot(p_ts)
+points(p_test_fitted, type = "l", col = 2, lty = 2)
+
+```
+
+Da sich die Personen in einer Altersgruppe in Hinsicht auf die für die Infizierung
+relevanten Eigenschaften ähnlicher sein dürften als beliebig ausgewählte Personen, 
+sind die Infektionen in einer Altersgruppe vermutlich positiv korreliert, 
+so dass die Annahme unabhängiger Beobachtungen des klassischen linearen Modells 
+nicht erfüllt sind.
+So gibt es bei Personen der Altersgruppe 05-14 häufiger Covid-Ausbrüche in 
+Schulen, wodurch eine Infektion in dieser Altersgruppe, zumindest in bestimmten
+Gebieten abhängig ist, von Infektionen anderer Personen in der gleichen 
+Altersgruppe.
+Wir gehen also davon aus, dass ebenfalls die Hospitalisierungen davon betroffen
+sind, da eine höhere Infektionszahl i.A. gleichbedeutend mit einer höheren Anzahl
+an Hospitalisierten einhergeht (Vergleich siehe Grafik).
+
+Hier sieht man auch direkt die hohe Korrelation zwischen Infektion
+und Hospitalisierung über den gesamten zeitlichen Verlauf, sowie 
+die unterschiedlichen Effekte der Hospitalisierung auf unterschiedlichen 
+Altersgruppen (Interaktionseffekte)
+```{r}
+ggplot(final_df %>% filter(Altersgruppe == "00-04")) +
+  geom_line(aes(x = Meldedatum, y = Hospitalisierung, col = "a")) +
+  geom_line(aes(x = Meldedatum, y = Neuerkrankung, col = "b")) +
+  facet_wrap(~Bundesland) +
+  scale_y_log10(name = "Hospitalisierung/Infizierung auf log10 Skala") +
+  scale_color_manual(values = c("a" = "red", "b" = "blue"), 
+                     labels = c("Hospitalisiert", "Infiziert"),
+                     name = "Legende") +
+  theme_minimal()
+
+ggplot(final_df %>% filter(Altersgruppe == "80+")) +
+  geom_line(aes(x = Meldedatum, y = Hospitalisierung, col = "a")) +
+  geom_line(aes(x = Meldedatum, y = Neuerkrankung, col = "b")) +
+  facet_wrap(~Bundesland) +
+  scale_y_log10(name = "Hospitalisierung/Infizierung auf log10 Skala") +
+  scale_color_manual(values = c("a" = "red", "b" = "blue"), 
+                     labels = c("Hospitalisiert", "Infiziert"),
+                     name = "Legende") +
+  theme_minimal()
+```
+
+Die Hospitalisierungzahl weist einen saisonalen Effekt auf, der bedingt durch
+die Infektionen entsteht.
+Sind die Infektionen somit hoch, so ist die Hospitalisierungszahl hoch
+
+```{r}
+p_sai <- final_df %>%
+  group_by(Meldedatum, Kalenderjahr, Kalenderwoche) %>%
+  summarise(Hospitalisierung = sum(Hospitalisierung))
+
+ggplot() +
+  geom_line(data = p_sai %>% filter(Kalenderjahr == "2020"), 
+            aes(x = Kalenderwoche, y = Hospitalisierung, col = "a")) +
+  geom_line(data = p_sai %>% filter(Kalenderjahr == "2021"), 
+            aes(x = Kalenderwoche, y = Hospitalisierung, col = "b")) +
+  geom_line(data = p_sai %>% filter(Kalenderjahr == "2022"), 
+            aes(x = Kalenderwoche, y = Hospitalisierung, col = "c")) +
+  scale_color_manual(name = "legende", values = c("a" = "black", "b" = "red", "c" = "yellow"),
+                     labels = c("2020", "2021", "2022")) + theme_minimal()
+```
+
+Die Hospitalisierungsrate hingegen ist nicht saisonal, weist aber einen negativen
+Trend auf, ist also somit nicht stationär.
+
+```{r}
+p_sai_rate <- final_df %>%
+  group_by(Meldedatum, Kalenderjahr, Kalenderwoche) %>%
+  summarise(Hospitalisierung = sum(Hospitalisierung), 
+            Neuerkrankung = sum(Neuerkrankung)) %>%
+  mutate(hosprate = Hospitalisierung/(Neuerkrankung + 1))
+
+ggplot(p_sai_rate) +
+  geom_line(aes(x = Meldedatum, y = hosprate)) + theme_minimal()
+
+```
+Alternativ wird die Hospitalisierungsrate auch in Hospitalisierungen pro
+100.000 Einwohner angegeben.
+
+```{r}
+p_rate <- final_df %>%
+  group_by(Meldedatum, Kalenderjahr, Kalenderwoche) %>%
+  summarise(Hospitalisierung = sum(Hospitalisierung), 
+            Neuerkrankung = sum(Neuerkrankung)) %>%
+  mutate(hosprate = Hospitalisierung/100000)
+
+ggplot(p_rate) +
+  geom_line(aes(x = Meldedatum, y = hosprate)) + theme_minimal()
+```
+Es ergibt sich dabei ein ähnliches Bild wie bei der Hospitalisierung in
+absoluten Zahlen.
+
+Zusammefassung:
+Die Hospitalisierung ist für unterschiedliche Altersgruppen unterschiedlich. 
+Die Altersgruppen sind somit ein Merkmal, welches Berücksichtigt werden sollte.
+Des Weiteren ist die Hospitalisierungsrate in den einzelnen Bundesländern 
+Deutschlands, bedingt auf die Altersgruppen, unterschiedlich. Daher sollte
+ebenfalls eine räumliche Trennung vorgenommen werden.
+Es ergeben sich die beiden Darstellung der Hospitalisierung als  
+- Hospitalisierungsrate  
+- Hospitalisierung in absoluten Zahlen  
+Wie sich zeigt, ist die Hospitalisierungsrate nicht saisonal und 
+nicht stationär.
+Hingegen sind die Hospitalisierungen in absoluten Zahlen saisonal und ebenfalls
+nicht stationär.
+
+```{r}
+p_lag <- as_tsibble(p_sai_rate)
+
+p_lag %>%
+  gg_lag(Hospitalisierung, geom = "point")
+```
+Stark positiver Zusammenhang bei lag 1, lag 2 und lag 3
+
+```{r}
+p_sai_rate$index <- 1:nrow(p_sai_rate)
+p_arima <- as_tsibble(p_sai_rate, index = index)
+p_arima <- p_arima[,c(3,4)]
+forecast::auto.arima(p_arima, stationary = F, seasonal = T)
+hist(p_arima$Hospitalisierung)
+p_gamm <- gamm(Hospitalisierung ~ s(index, k = 100, bs = "ps"),
+               family = "poisson", data = p_arima[-c(nrow(p_arima) - 1, nrow(p_arima)), ],
+               correlation = corARMA(form = ~1|index, p = 1, q = 1))
+summary(p_gamm$gam)
+gam.check(p_gamm$gam)
+plot(p_arima$Hospitalisierung~p_arima$Meldedatum, type = "l", col = "red")
+lines(predict(p_gamm$gam, type = "response", newdata = p_arima)~p_arima$Meldedatum, type = "l", col = "black")
+lines(predict(p_gamm$gam, type = "response", newdata = p_arima[c(nrow(p_arima) - 1, nrow(p_arima)), ])~p_arima$Meldedatum[c(nrow(p_arima) - 1, nrow(p_arima))], type = "l", col = "black")
+```

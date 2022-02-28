@@ -300,6 +300,7 @@ lapply(names(list_of_dfs), function(x) {
 
 
 ## true total
+true_total <- data.frame()
 true_total <- list_of_dfs$`Baden-Wuerttemberg`
 for (i in names(list_of_dfs)[-1]) {
   true_total <- true_total %>% bind_rows(list_of_dfs[[i]])
@@ -422,6 +423,9 @@ bl_models$Thueringen[["dist"]] <- "poisson"
 
 ```{r model}
 
+## Nur ene Vertielung benutzen oder Argumentieren
+# Entscheidung sauber begründen
+
 for (i in seq_along(list_of_dfs)) {
   bl_name <- names(list_of_dfs)[[i]]
   bl_models[[bl_name]][["model"]] <- gam(Hospitalisierung ~ Neuerkrankung * Altersgruppe +
@@ -447,30 +451,48 @@ for (i in names(bl_models)) {
 
 # forecast für jedes Bundesland:
 ggplot() +
-  geom_line(data = pdata$Bayern, aes(x = Meldedatum, y = Hospitalisierung, col = Altersgruppe), alpha = 0.5) +
-  scale_color_manual(values=c("#ff0000", "#56ff00", "#000fff")) +
+  geom_line(data = pdata$`Rheinland-Pfalz`, aes(x = Meldedatum, y = Hospitalisierung, col = Altersgruppe), alpha = 0.5) +
+  #scale_color_manual(values=c("#ff0000", "#56ff00", "#000fff")) +
   geom_point(data = 
-               pdata$Bayern[pdata$Bayern$Meldedatum %in% c(as.Date("2022-01-03"), 
+               pdata$`Rheinland-Pfalz`[pdata$`Rheinland-Pfalz`$Meldedatum %in% c(as.Date("2022-01-03"), 
                                                            as.Date("2022-01-10")),], 
              aes(x = Meldedatum, y = fit, col = Altersgruppe)) +
   geom_vline(xintercept = as.Date("2021-12-27")) + theme_minimal()
 
 # forecast insgesamt
 forecast_df <- true_total
-tmp <- numeric()
 t <- lapply(pdata, function(x){
   x %>% group_by(Meldedatum) %>% summarise(sum(fit)) %>% select(`sum(fit)`)
 })
 tm <- matrix(unlist(t), ncol = 16, byrow = F)
 # Jede Spalte ist ein Bundesland
 # Jede Zeile ist eine KW
-all(tm[,1] == t$`Baden-Wuerttemberg`)
 tmp <- rowSums(tm)
 
 forecast_df <- cbind(forecast_df, tmp)
 ggplot(forecast_df) +
   geom_line(aes(x = Meldedatum, y = `sum(Hospitalisierung)`), col = "black") +
   geom_line(aes(x = Meldedatum, y = tmp), col = "red") +
+  geom_vline(xintercept = as.Date("2021-12-27")) +
+  theme_minimal()
+
+
+
+# Über das Alter:
+
+bay_allAge <- true_bl_age$Bayern %>%
+  group_by(Meldedatum) %>%
+  summarise(sum(Hospitalisierung))
+
+fit_bay <- pdata$Bayern %>%
+  group_by(Meldedatum) %>%
+  summarise(sum(fit))
+
+temp_final <- cbind(bay_allAge, tmp = fit_bay$`sum(fit)`)
+
+ggplot(temp_final) +
+  geom_line(aes(x = Meldedatum, y = `sum(Hospitalisierung)`), col = "black") +
+  geom_line(aes(x = Meldedatum, y = tmp), col ="red") +
   geom_vline(xintercept = as.Date("2021-12-27")) +
   theme_minimal()
 ```
