@@ -9,10 +9,16 @@ output: pdf_document
 knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(feasts)
+library(gridExtra)
+library(mgcv)
+library(forecast)
 ```
 
 ```{r prep}
 final_df <- readRDS("../final_df.RDS")
+impfungen <- readRDS("../../data_truth/RKI/impfungen.Rds")
+
+N <- sum(unique(final_df$population))
 ```
 
 Wie die Hospitalisierung funktioniert:
@@ -29,58 +35,192 @@ Erfolgt die Hospitalisierung mehr als 7 Tage nach der Meldung, dann werden diese
 Fälle nachgemeldet.
 (grafisch in PP)
 
+Die Hospitalisierungsrate kann auf verschiedene Wege gemessen werden.
+Zum einen gibt es die weit verbreitete und mediale genutzte Möglichkeit, 
+hospitalisierte Fälle pro Wochepro 100000 Einwohner zu berichten
+
+```{r}
+p_rate_100 <- final_df %>%
+  group_by(Kalenderjahr, Kalenderwoche) %>%
+  summarise(Hospitalisierung = sum(Hospitalisierung), 
+            Neuerkrankung = sum(Neuerkrankung)) %>%
+  mutate(hosprate = Hospitalisierung/N * 100000)
+
+ggplot(p_rate_100) +
+  geom_line(aes(x = as.Date(paste("1",Kalenderwoche, Kalenderjahr, sep = "-"), format = "%u-%W-%Y"), y = hosprate)) + theme_minimal() + xlab("Kalenderwochen") + ylab("Hospitalisierungsrate")
+```
+Zum anderen kann die Hospitalisierung als absolute Zahl ausgegeben werden
+```{r absolut}
+p_rate_abs <- final_df %>%
+  group_by(Meldedatum) %>%
+  summarise(Hospitalisierung = sum(Hospitalisierung),
+            Neuerkrankung = sum(Neuerkrankung))
+
+plot(p_rate_abs$Hospitalisierung ~ p_rate_abs$Meldedatum, type = "l", 
+     xlab = "Datum", ylab = "Hospitalisierungen")
+```
+
+Es ergeben sich dabei ähnliche Zeitreihen.
+
+Da die Hospitalisierungen immer zum Zeitpunkt der Infektionsmeldung an die 
+Gesundheitsämter erfasst wird, i.a.W. also zum Meldedatum,
+kann ebenfalls betrachtet werden, wie hoch der Anteil der Hospitalisierten 
+Personen an der Gesamtzahl der Infektionen in dieser Woche ist.
+
+```{r hosp durch inf}
+p_hosp_inf <- final_df %>%
+  group_by(Meldedatum) %>%
+  summarise(Hospitalisierung = sum(Hospitalisierung),
+            Neuerkrankung = sum(Neuerkrankung)) %>%
+  mutate(hosprate = Hospitalisierung / Neuerkrankung)
+
+plot(p_hosp_inf$hosprate ~ p_hosp_inf$Meldedatum, type = "l",
+     xlab = "Datum", ylab = "Hospitalisierungsrate")
+
+```
+
+
 Bezüglich dem räumlichen Aspekt bei Meldungen und Hospitalisierungen gilt folgendes:
-I.d.R. erfassen die Gesundheitsämter die betroffenen Personen deren Wohnort in
-ihrem Zuständigkeitsbereich liegt.
-Für München wäre das also z.B. (Gesundheitsamt). Somit wird jeder positiver Fall,
-auch wenn er in einem anderen Bundesland stattfand, z.B. Reisende, an das 
-Gesundheitsamt übermittelt, welches Zuständigkeit über München hat.
-Es gibt allerdings Ausnahmen:
-Ist eine betroffene Person in Niedersachsen wohnhaft, wird aber in Hamburg
-hospitalisiert, dann erfolgt die Zuordnung zum Bundesland Niedersachsen.
+Die Daten werden in der Regel von dem Gesundheitsamt an das RKI übermittelt, das für den Wohnort der betroffenen Person zuständig ist. In Einzelfällen können die Gesundheitsämter von dieser Regelung abweichen. Wenn die betroffene Person z.B. in Niedersachsen wohnhaft ist, aber in Hamburg hospitalisiert wird, dann erfolgt die Zuordnung zum Bundesland Niedersachsen. Das bedeutet, dass die Daten keinen direkten Rückschluss auf die Krankenhausbelegung der jeweiligen Bundesländer zulassen.
 (grafisch PP)
 [https://github.com/robert-koch-institut/COVID-19-Hospitalisierungen_in_Deutschland#geografischer-bezug-der-hospitalisierten-covid-19-f%C3%A4lle]
 
-Die Frage die sich dabei sofort stellt ist. Unterscheiden sich die Hospitaliserungs-
-raten bezogen auf die Altersgruppen in den einzelnen Bundesländern überhaupt?
 
+Allerdings werden Infektionen anhand des Infektionsortes gemeldet. 
+Somit gilt bspw. für Reisende, wenn diese ihren Wohnort in z.B. Berlin haben, 
+aber in Brandenburg positiv getestet werden, die Infektion für das Bundeslnd
+Brandenburg gemeldet wird. Sollte sich der gesundheitliche Zustand im zeitlichen 
+Verlauf verschlimmern und die Person hospitalisiert werden müssen und sie 
+befindet sich noch in Brandenburg, so wird die Hospitalisierung für das
+Bundesland Berlin gemeldet.
+Somit können Hospitalisierungen nicht ins Verhältnis mit Infektionen gesetzt werden,
+da die Hospitalisierung u.U. nicht im Bundesland, in dem die Infektion gemeldet
+wurde, gemeldet wird.
+
+
+
+
+
+
+
+
+
+
+Bundesländer in Deutschland unterscheiden sich sehr bezüglich ihrer 
+sozioökonomischen Faktoren, wie z.B. der Altersstruktur, dem Reichtum,
+der Bildung oder durch den Anteil der Städtischen und Ländlichen Gebiete.
+Insgesamt können Unterschiede zwischen Bundesländern aufgrund dieser Faktoren
+erklärt werden.
+
+Für die Hospitalisierung sind Faktoren wie das Alter, Vorerkrankungen oder der
+Impfschutz entscheidene Faktoren, um nur ein paar zu nennen.
+Somit kann die Hospitalisierungsrate erklärt werden durch
+Hospitalisierungsrate|Bundesland, wobei der Effekt des Bundeslandes auf die 
+Hospitalisierunsrate durch die Altersstuktur des Bundeslandes und die Impfquote
+erklärt werden kann.
+
+Des Weiteren hängt die Hospitalisierungsrate von der vorherrschenden 
+Variante des Corona-Virus ab. So zeigt sich in aktuellen Studien, 
+dass Omikron zwar die höchste Ansteckungsrate aufweist, allerdings auch in den
+wenigsten Fällen zu schweren Verläufen führt.
+
+Zu letzt hängt die Hospitalisierungsrate von der Höhe der Infektionen ab.
+Dabei kann der Effekt der Infektionen ebenfalls anhand des Effektes des Bundeslandes
+geschätzt werden, ist allerdings unabhängig vom Impfstatus.
+
+Insgesamt ergibt sich somit
+E(Hospitalisieurngsrate_i) = Bundesland_i + Infektionen_i +  Variante_i, wobei gilt
+
+Hospitalisierung_i|Bundesland_i kann vollständig durch die Population erklärt werden.
+Es ergibt sich somit
+E(Hospitalisieurngsrate_i) = Altersgruppe_i + Impfquote_i + Infektionen_i +  Variante_i
+
+Durch Aufnahme einer Zeitvariierenden Kovariable kann der Effekt der Impfquote und
+der Variante geschätzt werden, da hierfür die Datenlage nicht ausreichend gegeben ist.
+
+Es ergibt sich als neue Gleichung
+
+E(Hospitalisieurngsrate_i) = f(zeit_i) + Altersgruppe_i + Infektionen_i
+
+Im Folgenden werden nun die eben theoretisch hergeleiteten Erkenntnisse überprüft.
+
+Unterschied zwischen den Bundesländern
 ```{r hosprate bundesland alter}
 p_bl_age <- final_df %>%
-  mutate(hosprate = Hospitalisierung / (Neuerkrankung + 1))
+  group_by(Bundesland, Meldedatum, Kalenderjahr, Kalenderwoche) %>%
+  summarise(Hospitalisierung = sum(Hospitalisierung),
+            population = sum(population)) %>%
+  mutate(hosprate = Hospitalisierung/population * 100000)
 
 ggplot(p_bl_age) +
-  geom_line(aes(x = Meldedatum, y = hosprate, col = Bundesland)) +
-  facet_wrap(~Altersgruppe) + theme_minimal()
-
-
+  geom_line(aes(x = Meldedatum, y = hosprate, col = Bundesland)) + theme_minimal()
 ```
 Wie zu sehen ist, gibt es deutliche Unterschiede bezüglich der Hospitalisierungs-
-rate in den einzelnen Bundesländern, bedingt auf das Alter.
-Wie kann das erklärt werden?
-Ein Aspekt könnte sein, dass die Betrachtung von wöchentlichen Daten zu fein ist.
+rate in den einzelnen Bundesländern.
+
+Es wird nun überprüft, inwiefern sich die Altersgruppen bzgl der Hospitalisierungsrate
+unterscheiden.
 
 ```{r}
-p_monthly <- final_df %>%
-  mutate(month = strftime(Meldedatum, format = "%m")) %>%
-  group_by(Bundesland, Altersgruppe, month, Kalenderjahr) %>%
+p_age <- final_df %>%
+  group_by(Meldedatum, Altersgruppe) %>%
   summarise(Hospitalisierung = sum(Hospitalisierung),
-            Neuerkrankung = sum(Neuerkrankung)) %>%
-  mutate(hosprate = Hospitalisierung / (Neuerkrankung + 1))
+            population = sum(population)) %>%
+  mutate(hosprate = Hospitalisierung / population * 100000)
 
-ggplot(p_monthly) +
-  geom_line(aes(x = as.Date(paste("01", month, Kalenderjahr, sep = "-"), format = "%d-%m-%Y"), y = hosprate, col = Bundesland)) +
-  facet_wrap(~Altersgruppe) +
+ggplot(p_age) +
+  geom_line(aes(x = Meldedatum, y = hosprate, col = Altersgruppe)) +
   xlab("Datum") + ylab("Hospitalisierungsrate") + theme_minimal()
 ```
-Hier zu sehen ist, dass die Unterschiede zwischen den Bundesländern, bedingt
-auf das Alter nicht mehr so stark ausfallen.
-Allerdings scheinen die Hospitalisierungszahlen, bedingt auf die höhe der
-Infektionszahlen trotzdem Abhängig vom jeweiligen Bundesland zu sein. 
-Somit ist eine differenzierte Betrachtung der Bundesländer naheliegend.
+Bezüglich der Altersgruppen ergeben sich ebenfalls extrem unterschiedliche 
+Hospitalisierungsraten. 
 
-Der Unterschied bzgl der Altersgruppen ist sofort ersichtlich und geht ebenfalls
-aus zahlreichen Studien hervor.
+Betrachtet man nun die Hospitalisierungsrate gegeben der Bundesländer und der
+Altersgruppen, sowie deren Population, sollten sich bereits ähnlichere Verläufe zeigen
 
+```{r}
+p_bl_age <- final_df %>%
+  mutate(hosprate = Hospitalisierung / population * 100000)
+
+p1 <- ggplot(p_bl_age %>% filter(Altersgruppe == "00-04")) +
+  geom_line(aes(x = Meldedatum, y = hosprate, col = Bundesland)) + theme_minimal()
+p2 <- ggplot(p_bl_age %>% filter(Altersgruppe == "05-14")) +
+  geom_line(aes(x = Meldedatum, y = hosprate, col = Bundesland)) + theme_minimal()
+p3 <- ggplot(p_bl_age %>% filter(Altersgruppe == "15-34")) +
+  geom_line(aes(x = Meldedatum, y = hosprate, col = Bundesland)) + theme_minimal()
+p4 <- ggplot(p_bl_age %>% filter(Altersgruppe == "35-59")) +
+  geom_line(aes(x = Meldedatum, y = hosprate, col = Bundesland)) + theme_minimal()
+p5 <- ggplot(p_bl_age %>% filter(Altersgruppe == "60-79")) +
+  geom_line(aes(x = Meldedatum, y = hosprate, col = Bundesland)) + theme_minimal()
+p6 <- ggplot(p_bl_age %>% filter(Altersgruppe == "80+")) +
+  geom_line(aes(x = Meldedatum, y = hosprate, col = Bundesland)) + theme_minimal()
+
+png(filename="./Bilder/Hosprate_geg_bl_aget.png", width= 2000, height = 900)
+grid.arrange(p1,p2,p3,p4,p5,p6)
+dev.off()
+```
+
+Es ergeben sich also sehr ähnliche Verläufe, wobei für niedrigere Altersgruppe
+die Unterschiede etwas stärker sind.
+
+Betrachtet man nun noch die Impfquote, so würden noch ähnlichere Verläufe erwartet
+werden.
+Da keine Daten bezüglich des Impfstatus für die hospitalisierten Fälle vorliegen,
+und sich die Daten des RKI bezüglich der Hospitalisierung und der Impfung stark
+unterscheiden. Wird hier zitiert von folgender Quelle.....
+
+---Hier wird dringend eine Grafik benötigt.---
+
+
+Das heißt, durch das aufteilen des Bundeslandeffektes kann dieser vollständig
+rausgerechnet werden.
+Es ergibt sich als Modell
+Hospitalisierungsrate_i = beta0 + sum(beta_Altersgruppe_j * 1(x_i = j)) + 
+  s(time_i)
+
+für j aus {0-4,...,80+}
+
+--------------------------------------------------------------------------------
 
 Variablen in dem Datensatz:
 Das Meldedatum ergibt sich aus dem Datum bei Hospitalisierung und Meldedatum 
@@ -153,15 +293,6 @@ pacf(final_df$Hospitalisierung[final_df$Bundesland == "Bayern"])
 ```
 
 ```{r test}
-p_bydate <- final_df %>%
-  group_by(Meldedatum) %>%
-  summarise(Hospitalisierung = sum(Hospitalisierung),
-            Neuerkrankung = sum(Neuerkrankung))
-
-p_ts <- as.ts(data.frame(Hospitalisierung = p_bydate$Hospitalisierung))
-p_ts
-plot.ts(p_ts, plot.type = "multiple", main = " Hospitaliserungen",
-        xlab = "Wochen seit Beginn")
 
 p_test <- arima(p_ts, order = c(0, 1, 1))
 p_test
@@ -261,21 +392,7 @@ ggplot(p_sai_rate) +
   geom_line(aes(x = Meldedatum, y = hosprate)) + theme_minimal()
 
 ```
-Alternativ wird die Hospitalisierungsrate auch in Hospitalisierungen pro
-100.000 Einwohner angegeben.
 
-```{r}
-p_rate <- final_df %>%
-  group_by(Meldedatum, Kalenderjahr, Kalenderwoche) %>%
-  summarise(Hospitalisierung = sum(Hospitalisierung), 
-            Neuerkrankung = sum(Neuerkrankung)) %>%
-  mutate(hosprate = Hospitalisierung/100000)
-
-ggplot(p_rate) +
-  geom_line(aes(x = Meldedatum, y = hosprate)) + theme_minimal()
-```
-Es ergibt sich dabei ein ähnliches Bild wie bei der Hospitalisierung in
-absoluten Zahlen.
 
 Zusammefassung:
 Die Hospitalisierung ist für unterschiedliche Altersgruppen unterschiedlich. 

@@ -35,38 +35,25 @@ lapply(list_of_dfs, function(x) {
 ```
 
 ```{r Nordrhein-Westfalen}
-# Ausgehend von den Altersboxplots können die Gruppen 00-04 und 05-14
-levels(list_of_dfs$`Nordrhein-Westfalen`$Altersgruppe) <- c("00-14", "00-14", "15-34", "35-59","60-79","80+")
-
-list_of_dfs$`Nordrhein-Westfalen` <- list_of_dfs$`Nordrhein-Westfalen` %>%
-  group_by(Meldedatum, Kalenderjahr, Kalenderwoche, Altersgruppe, Jahreszeit) %>%
-  summarise(Neuerkrankung = sum(Neuerkrankung),
-            Hospitalisierung = sum(Hospitalisierung))
-
-## Ergänze indizes
-
-list_of_dfs$`Nordrhein-Westfalen` <- list_of_dfs$`Nordrhein-Westfalen` %>%
-  group_by(Altersgruppe) %>%
-  mutate(index = row_number(Altersgruppe))
 
 hist(list_of_dfs$`Nordrhein-Westfalen`$Hospitalisierung)
 
-nordr_wf_gam <- gam(Hospitalisierung ~ Neuerkrankung * Altersgruppe +
-                 s(index, bs = "ps", k = 90) + 
-                 s(Kalenderwoche, bs = "cc", k = 30) +
-                 s(index, bs = "ps", by = Altersgruppe, k = 30),
+nordr_wf_gam <- gamm(Hospitalisierung ~ Neuerkrankung * Altersgruppe +
+                 s(Kalenderwoche, bs = "cc", k = 53) +
+                 s(index, bs = "ps", by = Altersgruppe, k = 50),
                data = list_of_dfs$`Nordrhein-Westfalen`,
                method = "REML",
                family = poisson(link = "log"),
-               knots = list(Kalenderwoche = c(0.5, 53.5)))
-summary(nordr_wf_gam)
-gam.check(nordr_wf_gam)
+               knots = list(Kalenderwoche = c(0.5, 53.5)),
+               correlation = corARMA(q = 2))
+summary(nordr_wf_gam$gam)
+gam.check(nordr_wf_gam$gam)
 plot(nordr_wf_gam)
-
+auto.arima(residuals(nordr_wf_gam$gam))
 
 for (x in unique(list_of_dfs$`Nordrhein-Westfalen`$Altersgruppe)) {
   pdata <- list_of_dfs$`Nordrhein-Westfalen` %>% filter(Altersgruppe == x)
-  pdata <- cbind(pdata, predict(nordr_wf_gam, pdata, type = "response", se = T))
+  pdata <- cbind(pdata, predict(nordr_wf_gam$gam, pdata, type = "response", se = T))
   pdata <- transform(pdata, upr = fit + 2 * se.fit, lwr = fit - 2 * se.fit)
   plot(x = pdata$Meldedatum, y = pdata$Hospitalisierung, type = "l", main = x)
   polygon(x = c(rev(pdata$Meldedatum),pdata$Meldedatum), y = c(rev(pdata$lwr), pdata$upr), col = alpha("grey80", 0.4), border = NA)
