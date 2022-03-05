@@ -1,12 +1,13 @@
 ---
-title: "Berlin"
-author: "Alexander Marquard / 11779957"
-date: "1/30/2022"
+title: "Hessen"
+author: "Qian Feng/12136134"
+date: "1/29/2022"
 output: pdf_document
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+install.packages("dpl")
 library(dplyr)
 library(tibble)
 library(stringr)
@@ -22,7 +23,6 @@ final_df <- readRDS("../final_df.RDS")
 
 ## Erstelle List mit Datensatz zu jedem Bundesland
 list_of_dfs <- split(final_df, as.factor(final_df$Bundesland))
-# bawü <- dplyr::filter(final_df, Bundesland == "Baden-Württemberg")
 ```
 
 ```{r boxplots}
@@ -34,37 +34,27 @@ lapply(list_of_dfs, function(x) {
 })
 ```
 
-```{r Berlin}
-# Ausgehend von den Altersboxplots können die Gruppen 00-04 und 05-14 zusammengeführt erden
-levels(list_of_dfs$Berlin$Altersgruppe) <- c("00-14", "00-14", "15-34", "35-59","60-79","80+")
-
-list_of_dfs$Berlin <- list_of_dfs$Berlin %>%
-  group_by(Meldedatum, Kalenderjahr, Kalenderwoche, Altersgruppe, Jahreszeit) %>%
-  summarise(Neuerkrankung = sum(Neuerkrankung),
-            Hospitalisierung = sum(Hospitalisierung))
-
+```{r Hessen}
 ## Ergänze indizes
 
-list_of_dfs$Berlin <- list_of_dfs$Berlin %>%
+list_of_dfs$Hessen <- list_of_dfs$Hessen %>%
   group_by(Altersgruppe) %>%
   mutate(index = row_number(Altersgruppe))
 
-ber_gam <- gam(Hospitalisierung ~ Neuerkrankung * Altersgruppe +
+hessen_gam <- gam(Hospitalisierung ~ Neuerkrankung * Altersgruppe +
                  s(index, bs = "ps", k = 90) + 
-                 s(Kalenderwoche, bs = "cc", k = 25) +
+                 s(Kalenderwoche, bs = "cc", k = 30) +
                  s(index, bs = "ps", by = Altersgruppe, k = 30),
-               data = list_of_dfs$Berlin,
+               data = list_of_dfs$Hessen,
                method = "REML",
                family = "nb",
                knots = list(Kalenderwoche = c(0.5, 53.5)))
-summary(ber_gam)
-gam.check(ber_gam)
-acf(residuals(ber_gam))
-# passt
+summary(hessen_gam)
+gam.check(hessen_gam)
 
-for (x in unique(list_of_dfs$Berlin$Altersgruppe)) {
-  pdata <- list_of_dfs$Berlin %>% filter(Altersgruppe == x)
-  pdata <- cbind(pdata, predict(ber_gam, pdata, type = "response", se = T))
+for (x in unique(list_of_dfs$Hessen$Altersgruppe)) {
+  pdata <- list_of_dfs$Hessen %>% filter(Altersgruppe == x)
+  pdata <- cbind(pdata, predict(hessen_gam, pdata, type = "response", se = T))
   pdata <- transform(pdata, upr = fit + 2 * se.fit, lwr = fit - 2 * se.fit)
   plot(x = pdata$Meldedatum, y = pdata$Hospitalisierung, type = "l", main = x)
   polygon(x = c(rev(pdata$Meldedatum),pdata$Meldedatum), y = c(rev(pdata$lwr), pdata$upr), col = alpha("grey80", 0.4), border = NA)

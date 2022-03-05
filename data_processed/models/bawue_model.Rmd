@@ -41,9 +41,8 @@ list_of_dfs$`Baden-Wuerttemberg` <- list_of_dfs$`Baden-Wuerttemberg` %>%
   group_by(Altersgruppe) %>%
   mutate(index = row_number(Altersgruppe))
 
-bawue_gam <- gam(Hospitalisierung ~ Neuerkrankung + Altersgruppe +
-                 s(index, bs = "ps", k = 80) + 
-                 s(Neuerkrankung, bs = "ps", k = 20) +
+bawue_gam <- gam(Hospitalisierung ~ Neuerkrankung * Altersgruppe +
+                 s(index, bs = "ps", k = 90) + 
                  s(Kalenderwoche, bs = "cc", k = 30) +
                  s(index, bs = "ps", by = Altersgruppe, k = 30),
                data = list_of_dfs$`Baden-Wuerttemberg`,
