@@ -2,7 +2,7 @@
 #
 # Collect Data ####
 #
-
+library(RCurl)
 ## Set path and workingdir
 # Expected to be run from within project
 path <- getwd()
@@ -23,7 +23,11 @@ saveRDS(lmu_nowcasting, './LMU/nowcasting_lmu_hosp.Rds')
 # from: https://github.com/robert-koch-institut/SARS-CoV-2_Infektionen_in_Deutschland
 # Aktuell_Deutschland_SarsCov2_Infektionen
 inzidenz_link <- "https://media.githubusercontent.com/media/robert-koch-institut/SARS-CoV-2_Infektionen_in_Deutschland/master/Aktuell_Deutschland_SarsCov2_Infektionen.csv"
-inzidenz <- read.csv(inzidenz_link, header = T)
+urlCSV <- getURL(inzidenz_link, timeout = 200)
+txtCSV <- textConnection(urlCSV)
+inzidenz <- read.csv(txtCSV, header = T)
+close(txtCSV)
+names(inzidenz)[1] <- "IdLandkreis"
 
 saveRDS(inzidenz, "./RKI/infektionen.Rds")
 

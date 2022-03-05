@@ -19,9 +19,34 @@ final_df <- readRDS("../final_df.RDS")
 impfungen <- readRDS("../../data_truth/RKI/impfungen.Rds")
 
 N <- sum(unique(final_df$population))
+
+p_pop <- final_df %>%
+  group_by(Meldedatum, Altersgruppe, Kalenderwoche, Kalenderjahr) %>%
+  summarise(Hospitalisierung = sum(Hospitalisierung),
+            Neuerkrankung = sum(Neuerkrankung)) %>%
+  group_by(Altersgruppe) %>%
+  arrange(Meldedatum) %>%
+  mutate(index = row_number(Altersgruppe))
 ```
 
 ```{r}
+
+total_gam <- gam(Hospitalisierung ~ s(Neuerkrankung, bs = "ps", k = 20,by = Altersgruppe) +
+                   s(Kalenderwoche, bs = "cc", k = 53) +
+                    s(index, bs = "ps", k = 50, by = Altersgruppe),
+               data = p_pop,
+               family = poisson(link = "log"),
+               knots = list(Kalenderwoche = c(0.5, 53.5)))
+
+summary(total_gam)
+gam.check(total_gam)
+plot(total_gam)
+auto.arima(residuals(total_gam$lme, type = "normalized"))
+
+
+
+
+
 total_gam <- gam(Hospitalisierung ~ Neuerkrankung * Altersgruppe +
                  s(Kalenderwoche, bs = "cc", k = 53) +
                  s(index, bs = "ps", by = Altersgruppe, k = 50),
@@ -34,6 +59,52 @@ plot(nordr_wf_gam)
 auto.arima(residuals(nordr_wf_gam$gam))
 
 ```
+
+```{r forecasting}
+
+diagnosis_df <- data.frame(mape = numeric(12), iteration = numeric(12))
+forecast_res <- data.frame(Meldedatum = character(12), 
+                           Hosp_one_week = numeric(12), 
+                           Hosp_two_week = numeric(12))
+
+for (i in seq(0, 10)) {
+  train_df <- p_pop[1: ((98 + i)*6),]
+  test_df <- p_pop[((98 + i) * 6 + 1):((100 + i)*6),]
+  gam_train <- gam(Hospitalisierung ~ Neuerkrankung * Altersgruppe +
+                   s(Kalenderwoche, bs = "cc", k = 53) +
+                    s(index, bs = "ps", k = 50, by = Altersgruppe),
+               data = train_df,
+               family = poisson(link = "log"),
+               knots = list(Kalenderwoche = c(0.5, 53.5)))
+  
+  forecast_l <- cbind(test_df, predict(gam_train, newdata = test_df, type = "response", se.fit = T))
+  diagnosis_df$mape[i+1] <- MAPE(forecast_l$Hospitalisierung, forecast_l$fit)
+  diagnosis_df$iteration[i+1] <- i+1
+  forecast <- forecast_l %>% group_by(Meldedatum) %>%
+    summarise(Hospitalisierung = sum(fit))
+  forecast_res$Meldedatum[i + 1] <- as.character(forecast$Meldedatum[1])
+  forecast_res$Meldedatum[i + 2] <- as.character(forecast$Meldedatum[2])
+  forecast_res$Hosp_one_week[i + 1] <- forecast$Hospitalisierung[1]
+  forecast_res$Hosp_two_week[i + 2] <- forecast$Hospitalisierung[2]
+}
+forecast_res$Meldedatum <- as.Date(forecast_res$Meldedatum, format = "%Y-%m-%d")
+ggplot() +
+  geom_line(data = p_pop %>% 
+              group_by(Meldedatum) %>% 
+              summarise(Hospitalisierung = sum(Hospitalisierung)), 
+            aes(x = Meldedatum, y = Hospitalisierung)) +
+  geom_line(data = forecast_res, aes(x = Meldedatum, y = Hosp_one_week, col = "red")) +
+  geom_line(data = forecast_res, aes(x = Meldedatum, y = Hosp_two_week, col = "yellow"))
+
+forecast_res
+p_pop %>% 
+              group_by(Meldedatum) %>% 
+              summarise(Hospitalisierung = sum(Hospitalisierung)) %>% tail(20)
+```
+
+
+
+
 
 ```{r}
 p_rate_ts <- final_df %>%

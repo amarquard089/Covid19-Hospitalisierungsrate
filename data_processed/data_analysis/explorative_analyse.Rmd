@@ -12,6 +12,7 @@ library(feasts)
 library(gridExtra)
 library(mgcv)
 library(forecast)
+library(interactions)
 ```
 
 ```{r prep}
@@ -47,7 +48,10 @@ p_rate_100 <- final_df %>%
   mutate(hosprate = Hospitalisierung/N * 100000)
 
 ggplot(p_rate_100) +
-  geom_line(aes(x = as.Date(paste("1",Kalenderwoche, Kalenderjahr, sep = "-"), format = "%u-%W-%Y"), y = hosprate)) + theme_minimal() + xlab("Kalenderwochen") + ylab("Hospitalisierungsrate")
+  geom_line(aes(x = as.Date(paste("1",Kalenderwoche, Kalenderjahr, sep = "-"), 
+                            format = "%u-%W-%Y"), 
+                y = hosprate)) + 
+  theme_minimal() + xlab("Kalenderwochen") + ylab("Hospitalisierungsrate")
 ```
 Zum anderen kann die Hospitalisierung als absolute Zahl ausgegeben werden
 ```{r absolut}
@@ -56,8 +60,9 @@ p_rate_abs <- final_df %>%
   summarise(Hospitalisierung = sum(Hospitalisierung),
             Neuerkrankung = sum(Neuerkrankung))
 
-plot(p_rate_abs$Hospitalisierung ~ p_rate_abs$Meldedatum, type = "l", 
-     xlab = "Datum", ylab = "Hospitalisierungen")
+ggplot(p_rate_abs) +
+  geom_line(aes(y = Hospitalisierung, x = Meldedatum)) + 
+     xlab("Datum") + ylab("Hospitalisierungen") + theme_minimal()
 ```
 
 Es ergeben sich dabei ähnliche Zeitreihen.
@@ -74,8 +79,9 @@ p_hosp_inf <- final_df %>%
             Neuerkrankung = sum(Neuerkrankung)) %>%
   mutate(hosprate = Hospitalisierung / Neuerkrankung)
 
-plot(p_hosp_inf$hosprate ~ p_hosp_inf$Meldedatum, type = "l",
-     xlab = "Datum", ylab = "Hospitalisierungsrate")
+ggplot(p_hosp_inf) +
+  geom_line(aes(y = hosprate, x = Meldedatum)) +
+     xlab("Datum") + ylab("Hospitalisierungsrate") + theme_minimal()
 
 ```
 
@@ -145,7 +151,7 @@ E(Hospitalisieurngsrate_i) = f(zeit_i) + Altersgruppe_i + Infektionen_i
 Im Folgenden werden nun die eben theoretisch hergeleiteten Erkenntnisse überprüft.
 
 Unterschied zwischen den Bundesländern
-```{r hosprate bundesland alter}
+```{r hosprate bundesland}
 p_bl_age <- final_df %>%
   group_by(Bundesland, Meldedatum, Kalenderjahr, Kalenderwoche) %>%
   summarise(Hospitalisierung = sum(Hospitalisierung),
@@ -221,6 +227,102 @@ Hospitalisierungsrate_i = beta0 + sum(beta_Altersgruppe_j * 1(x_i = j)) +
 für j aus {0-4,...,80+}
 
 --------------------------------------------------------------------------------
+
+Schauen wir uns als nächstes die Neuerkrankungen und Hospitalisierungen an
+
+```{r scatter}
+p_scatter <- final_df %>%
+  group_by(Bundesland, Altersgruppe, Meldedatum, Kalenderwoche, Kalenderjahr) %>%
+  summarise(Hospitalisierung = sum(Hospitalisierung),
+            Neuerkrankung = sum(Neuerkrankung))
+
+ggplot(p_scatter) +
+  #geom_smooth(aes(x = Neuerkrankung, y = Hospitalisierung, col = Altersgruppe), method = "lm") +
+  geom_point(aes(x = Neuerkrankung, y = Hospitalisierung)) + theme_minimal()
+
+```
+
+```{r}
+p_neuer <- final_df %>%
+  group_by(Bundesland, Altersgruppe, Meldedatum, Kalenderwoche, Kalenderjahr) %>%
+  summarise(Hospitalisierung = sum(Hospitalisierung),
+            Neuerkrankung = sum(Neuerkrankung))
+
+ggplot(p_neuer) +
+  geom_smooth(aes(x = Neuerkrankung, y = Hospitalisierung, col = Altersgruppe), method = "lm") +
+  geom_point(aes(x = Neuerkrankung, y = Hospitalisierung, col = Altersgruppe)) +
+  theme_minimal() #+ facet_wrap(~Altersgruppe)
+
+```
+Der Zusammenhang ist also nicht linear.
+Desweiteren sind hier Interaktionseffekte zwischen der Neuerkrankung und den
+Altersgruppen ersichtlich.
+Die Neuerkrankung sollte also nicht linear mit ins Modell aufgenommen werden.
+Außer für die Altersgruppe der 80+ jährigen ist die Annahme der nicht-linearität
+erfüllt.
+
+Nun mit Bundesland als weitere Kovariable
+
+```{r}
+p_neuer_bl <- final_df %>%
+  group_by(Altersgruppe, Meldedatum, Kalenderwoche, Kalenderjahr, Bundesland) %>%
+  summarise(Hospitalisierung = sum(Hospitalisierung),
+            Neuerkrankung = sum(Neuerkrankung))
+
+ggplot(p_neuer_bl) +
+  geom_smooth(aes(x = Neuerkrankung, y = Hospitalisierung, col = Altersgruppe), method = "lm") +
+  geom_point(aes(x = Neuerkrankung, y = Hospitalisierung, col = Altersgruppe)) +
+  facet_wrap(~Bundesland) +
+  theme_minimal()
+
+```
+
+Extreme Unterschiede. Unter Umständen aufgrund von höheren Tourismusaktivitäten,
+aber auch durch eine höhere Poplation vermutet, unterschiede im Anteile 
+Urbanisierter zu länderlichen Gebieten, Maßnahmen in der Coronapolitik usw.
+
+--------------------------------------------------------------------------------
+
+Wir schauen uns nun an, welche Bundesländer unter Umständen zusammen gelegt
+werden können, aufgrund von Infektionen, die evtl nicht im eigenen Bundesland
+berichtet werden, aber deren Hospitalisierung im eigenen Bundesland sind.
+
+
+
+
+--------------------------------------------------------------------------------
+
+Im Gegensatz zur Hospitalisierung sind die Neuerkrankungen jedoch abhängig
+voneinander.
+Das heißt, die Hospitalisierungszahl zum Tag i ist unabhängig zur Hospitalisierungszahl
+zum Tag i - 1.
+Allerdings gilt, dass die Infektionen abhängig sind, wodurch die Annahme von unabh
+Beobachtungen nicht gegeben ist.
+Somit ist die Hospitalisierungszahl|Infektionen zum Tag i ebenfalls abhängig
+von der Hospitalisierungszahl|Infektionen zum Tag i + 1
+
+Es wird also nun untersucht, inwiefern sich die Korrelation auswirkt
+
+```{r korr}
+p_korr <- final_df %>%
+  group_by(Altersgruppe, Meldedatum, Kalenderwoche, Kalenderjahr) %>%
+  summarise(Hospitalisierung = sum(Hospitalisierung),
+            Neuerkrankung = sum(Neuerkrankung))
+
+acf(p_korr$Neuerkrankung)
+pacf(p_korr$Neuerkrankung)
+
+```
+
+Die Autokorrelationsfunktion weist auf stark korrelierte Beobachtungen bis 
+einschließlich lag 10 hin,
+dahingegen sehen die partiellen Autokorrelationen recht gut aus. Es ist 
+ein gewisser Saisonaler Trend ersichtlich
+
+
+
+
+
 
 Variablen in dem Datensatz:
 Das Meldedatum ergibt sich aus dem Datum bei Hospitalisierung und Meldedatum 

@@ -51,18 +51,26 @@ list_of_dfs$Bayern <- list_of_dfs$Bayern %>%
 
 list_of_dfs$Bayern$Altersgruppe <- as.factor(list_of_dfs$Bayern$Altersgruppe)
 
-bay_gam <- gam(Hospitalisierung ~ Neuerkrankung * Altersgruppe + 
+bay_gam <- gam(Hospitalisierung ~ Neuerkrankung + Altersgruppe + 
                  s(Kalenderwoche, bs = "cc", k = 30) +
-                 s(index, bs = "ps", by = Altersgruppe, k = 30) +
-                 offset(log(population)),
+                 s(index, bs = "ps", by = Altersgruppe, k = 30),
                data = list_of_dfs$Bayern,
                method = "REML",
-               family = quasipoisson(link = "log"),
+               family = poisson(link = "log"),
                knots = list(Kalenderwoche = c(0.5, 53.5)))
 summary(bay_gam)
 gam.check(bay_gam)
 plot(bay_gam)
-pacf(resid(bay_gam$lme, type = "normalized"))
+pacf(resid(bay_gam))
+
+bay_gam2 <- gam(Hospitalisierung ~ s(Neuerkrankung, bs = "ps", by = Altersgruppe) + 
+                 s(Kalenderwoche, bs = "cc", k = 30) +
+                 s(index, bs = "ps", by = Altersgruppe, k = 30),
+               data = list_of_dfs$Bayern,
+               method = "REML",
+               family = poisson(link = "log"),
+               knots = list(Kalenderwoche = c(0.5, 53.5)))
+
 
 for (x in unique(list_of_dfs$Bayern$Altersgruppe)) {
   pdata <- list_of_dfs$Bayern %>% filter(Altersgruppe == x)
@@ -75,39 +83,32 @@ for (x in unique(list_of_dfs$Bayern$Altersgruppe)) {
 ```
 
 ```{r güte des modells}
-list_of_dfs$Bayern$population <- 1e5
 # wähle ein Jahr zum modellieren
-diagnosis_df <- data.frame(rmse = numeric(52), iteration = numeric(52))
-forecast_res <- data.frame(Meldedatum = character(52), 
-                           Hosp_one_week = numeric(52), 
-                           Hosp_two_week = numeric(52))
+diagnosis_df <- data.frame(mape = numeric(10), iteration = numeric(10))
+forecast_res <- data.frame(Meldedatum = character(10), 
+                           Hosp_one_week = numeric(10), 
+                           Hosp_two_week = numeric(10))
 
-for (i in seq(0,10)) {
-  train_df <- list_of_dfs$Bayern[1: ((53 + i)*6),]
-  test_df <- list_of_dfs$Bayern[((53 + i) * 6 + 1):((55 + i)*6),]
-  bay_train <- gam(Hospitalisierung ~ Neuerkrankung * Altersgruppe +
-                   s(index, bs = "ps", k = 90) + 
-                   s(Kalenderwoche, bs = "cc", k = 30) +
-                   s(index, bs = "ps", by = Altersgruppe, k = 30) +
-                     offset(log(population)),
-                 data = train_df,
-                 method = "REML",
-                 family = "poisson",
-                 knots = list(Kalenderwoche = c(0.5, 53.5)))
+for (i in seq(0,8)) {
+  train_df <- list_of_dfs$Bayern[1: ((98 + i)*6),]
+  test_df <- list_of_dfs$Bayern[((98 + i) * 6 + 1):((100 + i)*6),]
+  bay_train <- gam(Hospitalisierung ~ Neuerkrankung * Altersgruppe + 
+                 s(Kalenderwoche, bs = "cc", k = 50) +
+                 s(index, bs = "ps", by = Altersgruppe, k = 50),
+               data = train_df,
+               method = "REML",
+               family = poisson(link = "log"),
+               knots = list(Kalenderwoche = c(0.5, 53.5)))
   
   forecast_l <- cbind(test_df, predict(bay_train, newdata = test_df, type = "response", se.fit = T))
-  diagnosis_df$rmse[i+1] <- rmse(forecast_l$Hospitalisierung, forecast_l$fit)
+  diagnosis_df$rmse[i+1] <- MAPE(forecast_l$Hospitalisierung, forecast_l$fit)
   diagnosis_df$iteration[i+1] <- i+1
   forecast <- forecast_l %>% group_by(Bundesland, Meldedatum) %>%
-    summarise(Neuerkrankung = sum(Neuerkrankung), 
-              Hospitalisierung = sum(fit))
+    summarise(Hospitalisierung = sum(fit))
   forecast_res$Meldedatum[i + 1] <- as.character(forecast$Meldedatum[1])
   forecast_res$Meldedatum[i + 2] <- as.character(forecast$Meldedatum[2])
   forecast_res$Hosp_one_week[i + 1] <- forecast$Hospitalisierung[1]
   forecast_res$Hosp_two_week[i + 2] <- forecast$Hospitalisierung[2]
-}
-rmse <- function(x,y) {
-  sqrt(mean((x - y)^2))
 }
 
 df <- list_of_dfs$Bayern %>%
@@ -116,7 +117,7 @@ df <- list_of_dfs$Bayern %>%
             Hospitalisierung = sum(Hospitalisierung))
 forecast_res$Meldedatum <- as.Date(forecast_res$Meldedatum)
 
-ggplot(left_join(df, forecast_res, by = "Meldedatum")) +
+ggplot(left_join(df, forecast_res[-c(1,10),], by = "Meldedatum")) +
   geom_line(aes(x = Meldedatum, y = Hospitalisierung,col = "black")) +
   geom_line(aes(x = Meldedatum, y = Hosp_one_week,col = "orange") ) +
   geom_line(aes(x = Meldedatum, y = Hosp_two_week,col = "red")) +

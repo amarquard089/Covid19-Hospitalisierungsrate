@@ -66,7 +66,7 @@ inzidenz_new <- dplyr::left_join(inzidenz_new, df_bundeslaender, by = 'Bundeslan
 inzidenz_clean <- 
   inzidenz_new %>%
   filter(!(Meldedatum == "2020-10-28" & Refdatum == "2020-01-19")) %>%
-  filter(Meldedatum <= "2022-01-23") %>%
+  filter(Meldedatum <= "2022-01-30") %>%
   select(Bundesland, Altersgruppe, Geschlecht, Neuerkrankung = AnzahlFall, Meldedatum) %>% 
   mutate(Meldedatum = as.Date(Meldedatum)) %>%
   mutate(Altersgruppe = str_remove_all(Altersgruppe, "A")) %>% 
@@ -189,15 +189,13 @@ bevoelkerung$Bundesland[bevoelkerung$Bundesland == "Sachen-Anhalt"] <- "Sachsen-
 inz_hosp_w_all_Age <- left_join(inz_hosp_w_all_Age, bevoelkerung, by = c("Bundesland", "Altersgruppe"))
 
 saveRDS(inz_hosp_w_all_Age, file = "./final_df.RDS")
-
-
+```
 
 
 
 ####################################
 ## Der Rest kann ignoriert werden ##
 ####################################
-
 
 
 
