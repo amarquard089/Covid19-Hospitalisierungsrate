@@ -51,25 +51,18 @@ list_of_dfs$Bayern <- list_of_dfs$Bayern %>%
 
 list_of_dfs$Bayern$Altersgruppe <- as.factor(list_of_dfs$Bayern$Altersgruppe)
 
-bay_gam <- gam(Hospitalisierung ~ Neuerkrankung + Altersgruppe + 
+bay_gam <- gam(Hospitalisierung ~ Neuerkrankung * Altersgruppe + 
                  s(Kalenderwoche, bs = "cc", k = 30) +
                  s(index, bs = "ps", by = Altersgruppe, k = 30),
                data = list_of_dfs$Bayern,
                method = "REML",
                family = poisson(link = "log"),
-               knots = list(Kalenderwoche = c(0.5, 53.5)))
+               knots = list(Kalenderwoche = c(0.5, 53.5)),
+               weights = seq(0,1,length.out = nrow(list_of_dfs$Bayern)))
 summary(bay_gam)
 gam.check(bay_gam)
 plot(bay_gam)
-pacf(resid(bay_gam))
-
-bay_gam2 <- gam(Hospitalisierung ~ s(Neuerkrankung, bs = "ps", by = Altersgruppe) + 
-                 s(Kalenderwoche, bs = "cc", k = 30) +
-                 s(index, bs = "ps", by = Altersgruppe, k = 30),
-               data = list_of_dfs$Bayern,
-               method = "REML",
-               family = poisson(link = "log"),
-               knots = list(Kalenderwoche = c(0.5, 53.5)))
+auto.arima(resid(bay_gam))
 
 
 for (x in unique(list_of_dfs$Bayern$Altersgruppe)) {
@@ -92,13 +85,14 @@ forecast_res <- data.frame(Meldedatum = character(10),
 for (i in seq(0,8)) {
   train_df <- list_of_dfs$Bayern[1: ((98 + i)*6),]
   test_df <- list_of_dfs$Bayern[((98 + i) * 6 + 1):((100 + i)*6),]
-  bay_train <- gam(Hospitalisierung ~ Neuerkrankung * Altersgruppe + 
-                 s(Kalenderwoche, bs = "cc", k = 50) +
-                 s(index, bs = "ps", by = Altersgruppe, k = 50),
+  bay_train <- bay_train <- gam(Hospitalisierung ~ Neuerkrankung * Altersgruppe + 
+                 s(Kalenderwoche, bs = "cc", k = 30) +
+                 s(index, bs = "ps", by = Altersgruppe, k = 30),
                data = train_df,
                method = "REML",
                family = poisson(link = "log"),
-               knots = list(Kalenderwoche = c(0.5, 53.5)))
+               knots = list(Kalenderwoche = c(0.5, 53.5)),
+               weights = seq(0,10,length.out = nrow(train_df)))
   
   forecast_l <- cbind(test_df, predict(bay_train, newdata = test_df, type = "response", se.fit = T))
   diagnosis_df$rmse[i+1] <- MAPE(forecast_l$Hospitalisierung, forecast_l$fit)

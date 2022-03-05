@@ -77,7 +77,7 @@ p_hosp_inf <- final_df %>%
   group_by(Meldedatum) %>%
   summarise(Hospitalisierung = sum(Hospitalisierung),
             Neuerkrankung = sum(Neuerkrankung)) %>%
-  mutate(hosprate = Hospitalisierung / Neuerkrankung)
+  mutate(hosprate = Hospitalisierung / (Neuerkrankung + 1))
 
 ggplot(p_hosp_inf) +
   geom_line(aes(y = hosprate, x = Meldedatum)) +
@@ -282,10 +282,6 @@ aber auch durch eine höhere Poplation vermutet, unterschiede im Anteile
 Urbanisierter zu länderlichen Gebieten, Maßnahmen in der Coronapolitik usw.
 
 --------------------------------------------------------------------------------
-
-Wir schauen uns nun an, welche Bundesländer unter Umständen zusammen gelegt
-werden können, aufgrund von Infektionen, die evtl nicht im eigenen Bundesland
-berichtet werden, aber deren Hospitalisierung im eigenen Bundesland sind.
 
 
 
