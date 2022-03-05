@@ -7,6 +7,7 @@ Statistisches Praktikum. Thema: Covid 19 - Vorhersage der Hospitalisierungsrate
 - [Slideshow grammar_of_graphics](https://pkg.garrickadenbuie.com/gentle-ggplot2/#70)
 - [Colorbrewser](https://colorbrewer2.org/)
   - [Doku zur Nutzung](https://rstudio-pubs-static.s3.amazonaws.com/177286_826aed2f00794640b301aeb42533c6f1.html)
+- [ggplot Colors and Fills](http://sape.inf.usi.ch/quick-reference/ggplot2/colour)
 - Und hoffentlich mehr :grimacing:
 
 ## Wichtig: Lesen

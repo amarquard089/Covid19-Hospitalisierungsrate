@@ -148,3 +148,163 @@ ggplot(final_df_wo_impfung) +
 dev.off()
 ```
 
+NEUE PLOTS
+
+```{r Hospitalisierungsrate Verlauf + Virusvariante}
+plot_df <- final_df
+plot_df1 <- plot_df %>%
+  select(Meldedatum, Neuerkrankung, Hospitalisierung) %>%
+  group_by(Meldedatum) %>%
+  summarize(sum(Neuerkrankung), sum(Hospitalisierung))
+colnames(plot_df1)[c(2,3)] <- c("Neuerkrankung", "Hospitalisierung")
+plot_df1 <- plot_df1 %>%
+  mutate(Hospitalisierungsrate = Hospitalisierung / Neuerkrankung)
+
+xmax_omikron <- as.Date(max(final_df$Meldedatum))
+xmax_alphabeta <- xmin_gamma
+xmax_gamma <- xmin_delta
+xmax_delta <- xmin_omikron
+xmin_alphabeta <- as.Date("2020-12-18")
+xmin_gamma <- as.Date("2021-01-11")
+xmin_delta <- as.Date("2021-05-11")
+xmin_omikron <- as.Date("2021-11-24")
+
+png(filename="./Bilder/Hosprate_Verlauf_Variants.png", width= 2000, height = 900)
+
+ggplot(plot_df1, aes(Meldedatum, Hospitalisierungsrate)) + 
+  geom_rect(aes(xmin = xmin_alphabeta, xmax = xmax_alphabeta, ymin = -Inf, ymax = Inf, 
+    alpha = I(.01), fill  = I("turquoise"))) +
+  annotate("text", label = "Alpha & Beta Variants", x = as.Date("2021-01-11"), y = Inf, angle = 90,
+    hjust = 1.1, vjust = -1, size = 10, family = "serif") +
+  geom_rect(aes(xmin = xmin_gamma, xmax = xmax_gamma, ymin = -Inf, ymax = Inf, 
+    alpha = I(.01), fill  = "orange")) +
+  annotate("text", label = "Gamma Variant", x = as.Date("2021-03-23"), y = Inf, angle = 90,
+    hjust = 1.1, vjust = -1, size = 10, family = "serif") +
+   geom_rect(aes(xmin = xmin_delta, xmax = xmax_delta, ymin = -Inf, ymax = Inf, 
+    alpha = I(.01), fill  = I("lawngreen"))) +
+  annotate("text", label = "Delta Variant", x = as.Date("2021-08-30"), y = Inf, angle = 90,
+    hjust = 1.1, vjust = -1, size = 10, family = "serif") +
+  geom_rect(aes(xmin = xmin_omikron, xmax = xmax_omikron, ymin = -Inf, ymax = Inf, 
+    alpha = I(.01), fill  = "magenta")) +
+  annotate("text", label = "Omicron Variant", x = as.Date("2022-01-07"), y = Inf, angle = 90,
+    hjust = 1.1, vjust = -1, size = 10, family = "serif") +
+  geom_line(size = 1) +
+  theme_minimal() +
+  theme(text = element_text(size = 25)) +
+  ylim(c(0, 0.5))
+
+dev.off()
+```
+
+```{r Anteil Hospitalisierung nach Alter}
+plot_df2 <- plot_df %>%
+  select(Altersgruppe, Hospitalisierung) %>%
+  group_by(Altersgruppe) %>%
+  summarise(sum(Hospitalisierung))
+colnames(plot_df2)[2] <- "Hospitalisierung"
+
+plot_df2 <- plot_df2 %>%
+  mutate(Anteil = round((Hospitalisierung / sum(Hospitalisierung)) * 100, digits = 1))
+
+png(filename="./Bilder/Hosp_Alter.png", width= 2000, height = 900)
+
+ggplot(data = plot_df2, aes(x = Altersgruppe, y = Anteil, fill = Altersgruppe)) +
+  geom_col() +
+  geom_text(aes(label = Anteil), vjust = -0.3, size = 10) +
+  theme_minimal() +
+  theme(text = element_text(size = 25),
+        legend.position = "none",
+        panel.grid = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.y = element_blank()) +
+  scale_fill_brewer(palette = "PRGn", direction = -1)
+
+dev.off()
+```
+
+```{r}
+plot_df3 <- plot_df %>%
+  select(Meldedatum, Bundesland, Neuerkrankung, Hospitalisierung) %>%
+  group_by(Bundesland, Meldedatum) %>%
+  summarise(sum(Neuerkrankung), sum(Hospitalisierung))
+colnames(plot_df3)[c(3, 4)] <- c("Neuerkrankung", "Hospitalisierung")
+
+plot_df3 <- plot_df3 %>%
+  mutate(Hospitalisierungsrate = Hospitalisierung / Neuerkrankung)
+
+png(filename="./Bilder/Hosp_Verlauf_Bundesland_test.png", width= 2000, height = 900)
+
+plot_df3 %>%
+  ggplot() +
+  geom_line(aes(x = Meldedatum, y = Hospitalisierungsrate, color = Bundesland), size = 1) +
+  gghighlight(label_params = list(size = 10)) +
+  theme_minimal() +
+  theme(text = element_text(size = 25))
+
+dev.off()
+
+plot_df4 <- plot_df %>%
+  select(Meldedatum, Bundesland, Hospitalisierung) %>%
+  group_by(Bundesland, Meldedatum) %>%
+  summarise(sum(Hospitalisierung))
+colnames(plot_df4)[c(3)] <- c("Hospitalisierung")
+
+png(filename="./Bilder/Hosp_Verlauf_Bundesland.png", width= 2000, height = 900)
+
+plot_df4 %>%
+  ggplot() +
+  geom_line(aes(x = Meldedatum, y = Hospitalisierung, color = Bundesland), size = 1) +
+  gghighlight(label_params = list(size = 10)) +
+  theme_minimal() +
+  theme(text = element_text(size = 25))
+
+dev.off()
+
+plot_df5 <- plot_df %>%
+  select(Bundesland, Hospitalisierung, Neuerkrankung) %>%
+  group_by(Bundesland) %>%
+  summarise(sum(Hospitalisierung), sum(Neuerkrankung))
+colnames(plot_df5)[c(2,3)] <- c("Hospitalisierung", "Neuerkrankung")
+
+plot_df5 <- plot_df5 %>%
+  mutate(Hospitalisierungsrate = round((Hospitalisierung / Neuerkrankung) * 100, digits = 1))
+
+png(filename="./Bilder/Hosprate_Bundesland.png", width= 2000, height = 900)
+
+plot_df5 %>%
+  ggplot(aes(x = Bundesland, y = Hospitalisierungsrate, fill = Bundesland)) +
+  geom_col() +
+  geom_text(aes(label = Hospitalisierungsrate), vjust = -0.3, size = 10) +
+  scale_x_discrete(labels = c("Baden-Wuerttemberg" = "BW",
+                              "Bayern" = "BY",
+                              "Berlin" = "BE",
+                              "Brandenburg" = "BB",
+                              "Bremen" = "HB",
+                              "Hamburg" = "HH",
+                              "Hessen" = "HE",
+                              "Mecklenburg-Vorpommern" = "MV",
+                              "Niedersachsen" = "NI",
+                              "Nordrhein-Westfalen" = "NW",
+                              "Rheinland-Pfalz" = "RP",
+                              "Saarland" = "SL",
+                              "Sachsen" = "SN",
+                              "Sachsen-Anhalt" = "ST",
+                              "Schleswig-Holstein" = "SH",
+                              "Thueringen" = "TH")) +
+  theme_minimal() +
+  theme(text = element_text(size = 25),
+        legend.position = "none",
+        panel.grid = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.y = element_blank()) +
+  scale_fill_manual(values = mycolors)
+
+dev.off()
+
+mycolors <- colorRampPalette(brewer.pal(12, "Paired"))(16)
+ 
+ggplot(mtcars) + 
+  geom_histogram(aes(factor(hp)), fill=getPalette(16)) + 
+  theme(legend.position="right")
+```
+
