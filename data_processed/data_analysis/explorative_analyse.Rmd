@@ -47,12 +47,16 @@ p_rate_100 <- final_df %>%
             Neuerkrankung = sum(Neuerkrankung)) %>%
   mutate(hosprate = Hospitalisierung/N * 100000)
 
+png(filename="./Bilder/Hospitalisierungsrate.png", width = 2000, height = 300)
 
 ggplot(p_rate_100) +
   geom_line(aes(x = as.Date(paste("1",Kalenderwoche, Kalenderjahr, sep = "-"), 
                             format = "%u-%W-%Y"), 
-                y = hosprate)) + 
-  theme_minimal() + xlab("Kalenderwochen") + ylab("Hospitalisierungsrate")
+                y = hosprate), size = 1.25) + 
+  theme_minimal() + xlab("Meldedatum") + ylab("Hospitalisierungsrate") +
+  theme(text = element_text(size = 25))
+
+dev.off()
 ```
 Zum anderen kann die Hospitalisierung als absolute Zahl ausgegeben werden
 ```{r absolut}
@@ -61,9 +65,14 @@ p_rate_abs <- final_df %>%
   summarise(Hospitalisierung = sum(Hospitalisierung),
             Neuerkrankung = sum(Neuerkrankung))
 
+png(filename="./Bilder/Hospitalisierungsrate_Absolut.png", width= 2000, height = 300)
+
 ggplot(p_rate_abs) +
-  geom_line(aes(y = Hospitalisierung, x = Meldedatum)) + 
-     xlab("Datum") + ylab("Hospitalisierungen") + theme_minimal()
+  geom_line(aes(y = Hospitalisierung, x = Meldedatum), size = 1.25) + 
+     xlab("Meldedatum") + ylab("Hospitalisierungen") + theme_minimal() +
+  theme(text = element_text(size = 25))
+
+dev.off()
 ```
 
 Es ergeben sich dabei ähnliche Zeitreihen.
@@ -80,10 +89,14 @@ p_hosp_inf <- final_df %>%
             Neuerkrankung = sum(Neuerkrankung)) %>%
   mutate(hosprate = Hospitalisierung / (Neuerkrankung + 1))
 
-ggplot(p_hosp_inf) +
-  geom_line(aes(y = hosprate, x = Meldedatum)) +
-     xlab("Datum") + ylab("Hospitalisierungsrate") + theme_minimal()
+png(filename="./Bilder/Hospitalisierungsrate_Anteil.png", width= 2000, height = 900)
 
+ggplot(p_hosp_inf) +
+  geom_line(aes(y = hosprate, x = Meldedatum), size = 1.25) +
+     xlab("Meldedatum") + ylab("Hospitalisierungsrate") + theme_minimal() +
+  theme(text = element_text(size = 25))
+
+dev.off()
 ```
 
 
@@ -155,12 +168,20 @@ Unterschied zwischen den Bundesländern
 ```{r hosprate bundesland}
 p_bl_age <- final_df %>%
   group_by(Bundesland, Meldedatum, Kalenderjahr, Kalenderwoche) %>%
+  filter(Bundesland %in% c("Bayern", "Sachsen", "Thueringen", "Saarland")) %>%
   summarise(Hospitalisierung = sum(Hospitalisierung),
             population = sum(population)) %>%
   mutate(hosprate = Hospitalisierung/population * 100000)
 
+png(filename="./Bilder/Hosprate_Bundesland2.png", width= 2000, height = 900)
+
 ggplot(p_bl_age) +
-  geom_line(aes(x = Meldedatum, y = hosprate, col = Bundesland)) + theme_minimal()
+  geom_line(aes(x = Meldedatum, y = hosprate, col = Bundesland), size = 1.25) + theme_minimal() +
+  theme(text = element_text(size = 25))  + ylab("Hospitalisierungsrate") +
+  scale_color_brewer(palette = "Set1") #+
+  # gghighlight(label_params = list(size = 8))
+
+dev.off()
 ```
 Wie zu sehen ist, gibt es deutliche Unterschiede bezüglich der Hospitalisierungs-
 rate in den einzelnen Bundesländern.
@@ -175,9 +196,23 @@ p_age <- final_df %>%
             population = sum(population)) %>%
   mutate(hosprate = Hospitalisierung / population * 100000)
 
+# Level reverse für die Legende der Graphik
+p_age$Altersgruppe <- fct_rev(p_age$Altersgruppe)
+
+# AlterColors <- c("#8e0152","#c51b7d","#de77ae","#7fbc41","#4d9221","#276419")
+# AlterColors <- c("#9e0142","#d53e4f","#f46d43","#66c2a5","#3288bd","#5e4fa2")
+AlterColors <- c("#762a83","#9970ab","#c2a5cf","#a6dba0","#5aae61","#1b7837")
+
+png(filename="./Bilder/Hosprate_Altersgruppen.png", width= 2000, height = 900)
+
 ggplot(p_age) +
-  geom_line(aes(x = Meldedatum, y = hosprate, col = Altersgruppe)) +
-  xlab("Datum") + ylab("Hospitalisierungsrate") + theme_minimal()
+  geom_line(aes(x = Meldedatum, y = hosprate, col = Altersgruppe), size = 1.25) +
+  xlab("Meldedatum") + ylab("Hospitalisierungsrate") + theme_minimal() +
+  theme(text = element_text(size = 25))  +
+  scale_color_manual(values = AlterColors)
+  
+
+dev.off()
 ```
 Bezüglich der Altersgruppen ergeben sich ebenfalls extrem unterschiedliche 
 Hospitalisierungsraten. 
@@ -189,21 +224,47 @@ Altersgruppen, sowie deren Population, sollten sich bereits ähnlichere Verläuf
 p_bl_age <- final_df %>%
   mutate(hosprate = Hospitalisierung / population * 100000)
 
-p1 <- ggplot(p_bl_age %>% filter(Altersgruppe == "00-04")) +
-  geom_line(aes(x = Meldedatum, y = hosprate, col = Bundesland)) + theme_minimal()
-p2 <- ggplot(p_bl_age %>% filter(Altersgruppe == "05-14")) +
-  geom_line(aes(x = Meldedatum, y = hosprate, col = Bundesland)) + theme_minimal()
-p3 <- ggplot(p_bl_age %>% filter(Altersgruppe == "15-34")) +
-  geom_line(aes(x = Meldedatum, y = hosprate, col = Bundesland)) + theme_minimal()
-p4 <- ggplot(p_bl_age %>% filter(Altersgruppe == "35-59")) +
-  geom_line(aes(x = Meldedatum, y = hosprate, col = Bundesland)) + theme_minimal()
-p5 <- ggplot(p_bl_age %>% filter(Altersgruppe == "60-79")) +
-  geom_line(aes(x = Meldedatum, y = hosprate, col = Bundesland)) + theme_minimal()
-p6 <- ggplot(p_bl_age %>% filter(Altersgruppe == "80+")) +
-  geom_line(aes(x = Meldedatum, y = hosprate, col = Bundesland)) + theme_minimal()
+p1 <- ggplot(p_bl_age %>% filter(Altersgruppe == "00-04") %>%
+  filter(Bundesland %in% c("Bayern", "Sachsen", "Thueringen", "Saarland"))) +
+  geom_line(aes(x = Meldedatum, y = hosprate, col = Bundesland), size = 1) + theme_minimal() +
+  scale_color_brewer(palette = "Set1") +
+  labs(title = "00-04", y = "Hospitalisierungsrate") +
+  theme(text = element_text(size = 20))
+p2 <- ggplot(p_bl_age %>% filter(Altersgruppe == "05-14") %>%
+  filter(Bundesland %in% c("Bayern", "Sachsen", "Thueringen", "Saarland"))) +
+  geom_line(aes(x = Meldedatum, y = hosprate, col = Bundesland), size = 1) + theme_minimal() +
+  scale_color_brewer(palette = "Set1") +
+  labs(title = "05-14", y = "Hospitalisierungsrate") +
+  theme(text = element_text(size = 20))
+p3 <- ggplot(p_bl_age %>% filter(Altersgruppe == "15-34") %>%
+  filter(Bundesland %in% c("Bayern", "Sachsen", "Thueringen", "Saarland"))) +
+  geom_line(aes(x = Meldedatum, y = hosprate, col = Bundesland), size = 1) + theme_minimal() +
+  scale_color_brewer(palette = "Set1") +
+  labs(title = "15-34", y = "Hospitalisierungsrate") +
+  theme(text = element_text(size = 20))
+p4 <- ggplot(p_bl_age %>% filter(Altersgruppe == "35-59") %>%
+  filter(Bundesland %in% c("Bayern", "Sachsen", "Thueringen", "Saarland"))) +
+  geom_line(aes(x = Meldedatum, y = hosprate, col = Bundesland), size = 1) + theme_minimal() +
+  scale_color_brewer(palette = "Set1") +
+  labs(title = "35-59", y = "Hospitalisierungsrate") +
+  theme(text = element_text(size = 20))
+p5 <- ggplot(p_bl_age %>% filter(Altersgruppe == "60-79") %>%
+  filter(Bundesland %in% c("Bayern", "Sachsen", "Thueringen", "Saarland"))) +
+  geom_line(aes(x = Meldedatum, y = hosprate, col = Bundesland), size = 1) + theme_minimal() +
+  scale_color_brewer(palette = "Set1") +
+  labs(title = "60-79", y = "Hospitalisierungsrate") +
+  theme(text = element_text(size = 20))
+p6 <- ggplot(p_bl_age %>% filter(Altersgruppe == "80+") %>%
+  filter(Bundesland %in% c("Bayern", "Sachsen", "Thueringen", "Saarland"))) +
+  geom_line(aes(x = Meldedatum, y = hosprate, col = Bundesland), size = 1) + theme_minimal() +
+  scale_color_brewer(palette = "Set1") +
+  labs(title = "80+", y = "Hospitalisierungsrate") +
+  theme(text = element_text(size = 20))
 
 png(filename="./Bilder/Hosprate_geg_bl_aget.png", width= 2000, height = 900)
+
 grid.arrange(p1,p2,p3,p4,p5,p6)
+
 dev.off()
 ```
 
@@ -237,10 +298,16 @@ p_scatter <- final_df %>%
   summarise(Hospitalisierung = sum(Hospitalisierung),
             Neuerkrankung = sum(Neuerkrankung))
 
+png(filename="./Bilder/Scatterplot_Hosp_Infektion.png", width= 2000, height = 900)
+
 ggplot(p_scatter) +
   #geom_smooth(aes(x = Neuerkrankung, y = Hospitalisierung, col = Altersgruppe), method = "lm") +
-  geom_point(aes(x = Neuerkrankung, y = Hospitalisierung)) + theme_minimal()
+  geom_point(aes(x = Neuerkrankung, y = Hospitalisierung)) + theme_minimal() +
+  theme(text = element_text(size = 25)) +
+  ylim(c(0, 1200)) +
+  xlim(c(0, 87500))
 
+dev.off()
 ```
 
 ```{r}
@@ -249,10 +316,21 @@ p_neuer <- final_df %>%
   summarise(Hospitalisierung = sum(Hospitalisierung),
             Neuerkrankung = sum(Neuerkrankung))
 
+# Factor relevel für Legende
+p_neuer$Altersgruppe <- fct_rev(p_neuer$Altersgruppe)
+
+png(filename="./Bilder/Scatterplot_Altersgruppen2.png", width= 2000, height = 900)
+
 ggplot(p_neuer) +
-  geom_smooth(aes(x = Neuerkrankung, y = Hospitalisierung, col = Altersgruppe), method = "lm") +
+  geom_smooth(aes(x = Neuerkrankung, y = Hospitalisierung, col = Altersgruppe), method = "lm", size = 2) +
   geom_point(aes(x = Neuerkrankung, y = Hospitalisierung, col = Altersgruppe)) +
-  theme_minimal() #+ facet_wrap(~Altersgruppe)
+  theme_minimal() + #+ facet_wrap(~Altersgruppe)
+  theme(text = element_text(size = 25), legend.position = "none")  +
+  scale_color_manual(values = AlterColors) +
+  ylim(c(0, 1200)) +
+  xlim(c(0, 87500))
+
+dev.off()
 
 ```
 Der Zusammenhang ist also nicht linear.
@@ -270,12 +348,20 @@ p_neuer_bl <- final_df %>%
   summarise(Hospitalisierung = sum(Hospitalisierung),
             Neuerkrankung = sum(Neuerkrankung))
 
+# Factor relevel für Legende
+p_neuer_bl$Altersgruppe <- fct_rev(p_neuer_bl$Altersgruppe)
+
+png(filename="./Bilder/Scatterplot_Altersgruppen_Bundesland.png", width= 2000, height = 900)
+
 ggplot(p_neuer_bl) +
   geom_smooth(aes(x = Neuerkrankung, y = Hospitalisierung, col = Altersgruppe), method = "lm") +
-  geom_point(aes(x = Neuerkrankung, y = Hospitalisierung, col = Altersgruppe)) +
+  geom_point(aes(x = Neuerkrankung, y = Hospitalisierung, col = Altersgruppe))  +
+  scale_color_manual(values = AlterColors) +
   facet_wrap(~Bundesland) +
-  theme_minimal()
+  theme_minimal() +
+  theme(text = element_text(size = 20))
 
+dev.off()
 ```
 
 Extreme Unterschiede. Unter Umständen aufgrund von höheren Tourismusaktivitäten,
@@ -466,15 +552,20 @@ p_sai <- final_df %>%
   group_by(Meldedatum, Kalenderjahr, Kalenderwoche) %>%
   summarise(Hospitalisierung = sum(Hospitalisierung))
 
+png(filename="./Bilder/Zyklus_Muster.png", width= 2000, height = 900)
+
 ggplot() +
   geom_line(data = p_sai %>% filter(Kalenderjahr == "2020"), 
-            aes(x = Kalenderwoche, y = Hospitalisierung, col = "a")) +
+            aes(x = Kalenderwoche, y = Hospitalisierung, col = "a"), size = 1.25) +
   geom_line(data = p_sai %>% filter(Kalenderjahr == "2021"), 
-            aes(x = Kalenderwoche, y = Hospitalisierung, col = "b")) +
+            aes(x = Kalenderwoche, y = Hospitalisierung, col = "b"), size = 1.25) +
   geom_line(data = p_sai %>% filter(Kalenderjahr == "2022"), 
-            aes(x = Kalenderwoche, y = Hospitalisierung, col = "c")) +
-  scale_color_manual(name = "legende", values = c("a" = "black", "b" = "red", "c" = "yellow"),
-                     labels = c("2020", "2021", "2022")) + theme_minimal()
+            aes(x = Kalenderwoche, y = Hospitalisierung, col = "c"), size = 1.25) +
+  scale_color_manual(name = "Legende", values = c("a" = "#1b9e77", "b" = "#d95f02", "c" = "#e7298a"),
+                     labels = c("2020", "2021", "2022")) + theme_minimal() +
+  theme(text = element_text(size = 25))
+
+dev.off()
 ```
 
 Die Hospitalisierungsrate hingegen ist nicht saisonal, weist aber einen negativen

@@ -33,18 +33,19 @@ p_pop <- final_df %>%
   mutate(index = row_number(Altersgruppe))
 
 total_gam <- gam(Hospitalisierung ~ Neuerkrankung * Altersgruppe +
-                 s(Kalenderwoche, bs = "cc", k = 53, by = Altersgruppe) +
-                   s(Kalenderjahr, Altersgruppe, bs = "re"),
+                 s(Kalenderwoche, bs = "cc", k = 53, by = Altersgruppe),
                data = p_pop,
                method = "REML",
                family = poisson(link = "log"),
                knots = list(Kalenderwoche = c(1, 53)))
 
 summary(total_gam)
-gam.check(total_gam, rep = 500)
+gam.check(total_gam)
+R <- residuals(total_gam)
+F <- fitted(total_gam)
+plot(R ~ F)
 plot(total_gam)
 auto.arima(residuals(total_gam))
-
 ```
 
 ```{r forecasting}

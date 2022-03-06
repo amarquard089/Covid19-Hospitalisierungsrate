@@ -269,7 +269,7 @@ colnames(plot_df5)[c(2,3)] <- c("Hospitalisierung", "Neuerkrankung")
 plot_df5 <- plot_df5 %>%
   mutate(Hospitalisierungsrate = round((Hospitalisierung / Neuerkrankung) * 100, digits = 1))
 
-png(filename="./Bilder/Hosprate_Bundesland.png", width= 2000, height = 900)
+png(filename="./Bilder/Hosprate_Bundesland(alternativ).png", width= 2000, height = 900)
 
 plot_df5 %>%
   ggplot(aes(x = Bundesland, y = Hospitalisierungsrate, fill = Bundesland)) +
@@ -302,6 +302,7 @@ plot_df5 %>%
 dev.off()
 
 mycolors <- colorRampPalette(brewer.pal(12, "Paired"))(16)
+# package "RColorBrewer" und "grDevices"
  
 ggplot(mtcars) + 
   geom_histogram(aes(factor(hp)), fill=getPalette(16)) + 
