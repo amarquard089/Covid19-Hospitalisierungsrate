@@ -51,19 +51,16 @@ list_of_dfs$Bayern <- list_of_dfs$Bayern %>%
 
 list_of_dfs$Bayern$Altersgruppe <- as.factor(list_of_dfs$Bayern$Altersgruppe)
 
-bay_gam <- gam(Hospitalisierung ~ Neuerkrankung * Altersgruppe + 
-                 s(Kalenderwoche, bs = "cc", k = 30) +
-                 s(index, bs = "ps", by = Altersgruppe, k = 30),
+bay_gam <- gamm(Hospitalisierung ~ Neuerkrankung * Altersgruppe + 
+                 s(Kalenderwoche, bs = "cc", k = 53, by = Altersgruppe),
                data = list_of_dfs$Bayern,
                method = "REML",
                family = poisson(link = "log"),
-               knots = list(Kalenderwoche = c(0.5, 53.5)),
-               weights = seq(0,1,length.out = nrow(list_of_dfs$Bayern)))
-summary(bay_gam)
-gam.check(bay_gam)
-plot(bay_gam)
-auto.arima(resid(bay_gam))
-
+               knots = list(Kalenderwoche = c(1, 53)),
+               correlation = corARMA(form = ~1|Neuerkrankung, p = 3, q = 2))
+summary(bay_gam$gam)
+gam.check(bay_gam$gam)
+plot(bay_gam$lme)
 
 for (x in unique(list_of_dfs$Bayern$Altersgruppe)) {
   pdata <- list_of_dfs$Bayern %>% filter(Altersgruppe == x)
@@ -86,8 +83,7 @@ for (i in seq(0,8)) {
   train_df <- list_of_dfs$Bayern[1: ((98 + i)*6),]
   test_df <- list_of_dfs$Bayern[((98 + i) * 6 + 1):((100 + i)*6),]
   bay_train <- bay_train <- gam(Hospitalisierung ~ Neuerkrankung * Altersgruppe + 
-                 s(Kalenderwoche, bs = "cc", k = 30) +
-                 s(index, bs = "ps", by = Altersgruppe, k = 30),
+                 s(Kalenderwoche, bs = "cc", k = 53, by = Altersgruppe),
                data = train_df,
                method = "REML",
                family = poisson(link = "log"),

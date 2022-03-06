@@ -20,204 +20,30 @@ impfungen <- readRDS("../../data_truth/RKI/impfungen.Rds")
 
 N <- sum(unique(final_df$population))
 ```
-## Exponentielles Glätten
-
-```{r}
-p_ets <- final_df %>%
-  group_by(Meldedatum) %>%
-  summarise(Hospitalisierung = sum(Hospitalisierung))
-
-n <- nrow(p_ets)
-aa <- list()
-for (i in 0:10) {
-  erg <- ets(as.ts(p_ets$Hospitalisierung[-(n - 10 + i: n)]), model = "AAN")
-  aa[["plots"]][[as.character(i)]] <- autoplot(forecast(erg, h = 2)) + theme_minimal()
-  aa[["erg"]][[as.character(i)]] <- forecast(erg, h = 2)
-}
-ggplot() +
-  geom_ribbon(data = as.data.frame(aa$erg$`0`), 
-            aes(x = as.numeric(rownames(as.data.frame(aa$erg$`0`))), 
-                ymin = `Lo 95`, ymax = `Hi 95`), fill = "grey75") +
-  geom_line(data = as.data.frame(aa$erg$`0`), 
-            aes(x = as.numeric(rownames(as.data.frame(aa$erg$`0`))),
-                  y = `Point Forecast`), col = "blue") +
-  geom_ribbon(data = as.data.frame(aa$erg$`1`), 
-            aes(x = as.numeric(rownames(as.data.frame(aa$erg$`1`))), 
-                ymin = `Lo 95`, ymax = `Hi 95`), fill = "grey75") +
-  geom_line(data = as.data.frame(aa$erg$`1`), 
-            aes(x = as.numeric(rownames(as.data.frame(aa$erg$`1`))),
-                  y = `Point Forecast`), col = "blue") +
-  geom_ribbon(data = as.data.frame(aa$erg$`2`), 
-            aes(x = as.numeric(rownames(as.data.frame(aa$erg$`2`))), 
-                ymin = `Lo 95`, ymax = `Hi 95`), fill = "grey75") +
-  geom_line(data = as.data.frame(aa$erg$`2`), 
-            aes(x = as.numeric(rownames(as.data.frame(aa$erg$`2`))),
-                  y = `Point Forecast`), col = "blue") +
-  geom_ribbon(data = as.data.frame(aa$erg$`3`), 
-            aes(x = as.numeric(rownames(as.data.frame(aa$erg$`3`))), 
-                ymin = `Lo 95`, ymax = `Hi 95`), fill = "grey75") +
-  geom_line(data = as.data.frame(aa$erg$`3`), 
-            aes(x = as.numeric(rownames(as.data.frame(aa$erg$`3`))),
-                  y = `Point Forecast`), col = "blue") +
-  geom_ribbon(data = as.data.frame(aa$erg$`4`), 
-            aes(x = as.numeric(rownames(as.data.frame(aa$erg$`4`))), 
-                ymin = `Lo 95`, ymax = `Hi 95`), fill = "grey75") +
-  geom_line(data = as.data.frame(aa$erg$`4`), 
-            aes(x = as.numeric(rownames(as.data.frame(aa$erg$`4`))),
-                  y = `Point Forecast`), col = "blue") +
-  geom_ribbon(data = as.data.frame(aa$erg$`5`), 
-            aes(x = as.numeric(rownames(as.data.frame(aa$erg$`5`))), 
-                ymin = `Lo 95`, ymax = `Hi 95`), fill = "grey75") +
-  geom_line(data = as.data.frame(aa$erg$`5`), 
-            aes(x = as.numeric(rownames(as.data.frame(aa$erg$`5`))),
-                  y = `Point Forecast`), col = "blue") +
-  geom_ribbon(data = as.data.frame(aa$erg$`6`), 
-            aes(x = as.numeric(rownames(as.data.frame(aa$erg$`6`))), 
-                ymin = `Lo 95`, ymax = `Hi 95`), fill = "grey75") +
-  geom_line(data = as.data.frame(aa$erg$`6`), 
-            aes(x = as.numeric(rownames(as.data.frame(aa$erg$`6`))),
-                  y = `Point Forecast`), col = "blue") +
-  geom_ribbon(data = as.data.frame(aa$erg$`7`), 
-            aes(x = as.numeric(rownames(as.data.frame(aa$erg$`7`))), 
-                ymin = `Lo 95`, ymax = `Hi 95`), fill = "grey75") +
-  geom_line(data = as.data.frame(aa$erg$`7`), 
-            aes(x = as.numeric(rownames(as.data.frame(aa$erg$`7`))),
-                  y = `Point Forecast`), col = "blue") +
-  geom_ribbon(data = as.data.frame(aa$erg$`8`), 
-            aes(x = as.numeric(rownames(as.data.frame(aa$erg$`8`))), 
-                ymin = `Lo 95`, ymax = `Hi 95`), fill = "grey75") +
-  geom_line(data = as.data.frame(aa$erg$`8`), 
-            aes(x = as.numeric(rownames(as.data.frame(aa$erg$`8`))),
-                  y = `Point Forecast`), col = "blue") +
-  geom_ribbon(data = as.data.frame(aa$erg$`9`), 
-            aes(x = as.numeric(rownames(as.data.frame(aa$erg$`9`))), 
-                ymin = `Lo 95`, ymax = `Hi 95`), fill = "grey75") +
-  geom_line(data = as.data.frame(aa$erg$`9`), 
-            aes(x = as.numeric(rownames(as.data.frame(aa$erg$`9`))),
-                  y = `Point Forecast`), col = "blue") +
-  geom_ribbon(data = as.data.frame(aa$erg$`10`), 
-            aes(x = as.numeric(rownames(as.data.frame(aa$erg$`10`))), 
-                ymin = `Lo 95`, ymax = `Hi 95`), fill = "grey75") +
-  geom_line(data = as.data.frame(aa$erg$`10`), 
-            aes(x = as.numeric(rownames(as.data.frame(aa$erg$`10`))),
-                  y = `Point Forecast`), col = "blue") +
-  geom_line(data = p_ets, aes(x=1:nrow(p_ets), y = Hospitalisierung)) +
-  xlab("Zeit") +
-  ylab("Hospitalisierung") +
-  theme_minimal()
-
-```
-
-## Exponential Smoothing mit Hosp/Infekt
-
-```{r}
-p_hosp_inf <- final_df %>%
-  group_by(Meldedatum) %>%
-  summarise(Hospitalisierung = sum(Hospitalisierung),
-            Neuerkrankung = sum(Neuerkrankung)) %>%
-  mutate(hosprate = Hospitalisierung / (Neuerkrankung + 1))
-
-n <- nrow(p_hosp_inf)
-aa <- list()
-for (i in 0:10) {
-  erg <- ets(as.ts(p_hosp_inf$hosprate[-(n - 10 + i: n)]), model = "ZZN")
-  aa[["plots"]][[as.character(i)]] <- autoplot(forecast(erg, h = 2)) + theme_minimal()
-  aa[["erg"]][[as.character(i)]] <- forecast(erg, h = 2)
-}
-
-ggplot() +
-  geom_ribbon(data = as.data.frame(aa$erg$`0`), 
-            aes(x = as.numeric(rownames(as.data.frame(aa$erg$`0`))), 
-                ymin = `Lo 95`, ymax = `Hi 95`), fill = "grey75") +
-  geom_line(data = as.data.frame(aa$erg$`0`), 
-            aes(x = as.numeric(rownames(as.data.frame(aa$erg$`0`))),
-                  y = `Point Forecast`), col = "blue") +
-  geom_ribbon(data = as.data.frame(aa$erg$`1`), 
-            aes(x = as.numeric(rownames(as.data.frame(aa$erg$`1`))), 
-                ymin = `Lo 95`, ymax = `Hi 95`), fill = "grey75") +
-  geom_line(data = as.data.frame(aa$erg$`1`), 
-            aes(x = as.numeric(rownames(as.data.frame(aa$erg$`1`))),
-                  y = `Point Forecast`), col = "blue") +
-  geom_ribbon(data = as.data.frame(aa$erg$`2`), 
-            aes(x = as.numeric(rownames(as.data.frame(aa$erg$`2`))), 
-                ymin = `Lo 95`, ymax = `Hi 95`), fill = "grey75") +
-  geom_line(data = as.data.frame(aa$erg$`2`), 
-            aes(x = as.numeric(rownames(as.data.frame(aa$erg$`2`))),
-                  y = `Point Forecast`), col = "blue") +
-  geom_ribbon(data = as.data.frame(aa$erg$`3`), 
-            aes(x = as.numeric(rownames(as.data.frame(aa$erg$`3`))), 
-                ymin = `Lo 95`, ymax = `Hi 95`), fill = "grey75") +
-  geom_line(data = as.data.frame(aa$erg$`3`), 
-            aes(x = as.numeric(rownames(as.data.frame(aa$erg$`3`))),
-                  y = `Point Forecast`), col = "blue") +
-  geom_ribbon(data = as.data.frame(aa$erg$`4`), 
-            aes(x = as.numeric(rownames(as.data.frame(aa$erg$`4`))), 
-                ymin = `Lo 95`, ymax = `Hi 95`), fill = "grey75") +
-  geom_line(data = as.data.frame(aa$erg$`4`), 
-            aes(x = as.numeric(rownames(as.data.frame(aa$erg$`4`))),
-                  y = `Point Forecast`), col = "blue") +
-  geom_ribbon(data = as.data.frame(aa$erg$`5`), 
-            aes(x = as.numeric(rownames(as.data.frame(aa$erg$`5`))), 
-                ymin = `Lo 95`, ymax = `Hi 95`), fill = "grey75") +
-  geom_line(data = as.data.frame(aa$erg$`5`), 
-            aes(x = as.numeric(rownames(as.data.frame(aa$erg$`5`))),
-                  y = `Point Forecast`), col = "blue") +
-  geom_ribbon(data = as.data.frame(aa$erg$`6`), 
-            aes(x = as.numeric(rownames(as.data.frame(aa$erg$`6`))), 
-                ymin = `Lo 95`, ymax = `Hi 95`), fill = "grey75") +
-  geom_line(data = as.data.frame(aa$erg$`6`), 
-            aes(x = as.numeric(rownames(as.data.frame(aa$erg$`6`))),
-                  y = `Point Forecast`), col = "blue") +
-  geom_ribbon(data = as.data.frame(aa$erg$`7`), 
-            aes(x = as.numeric(rownames(as.data.frame(aa$erg$`7`))), 
-                ymin = `Lo 95`, ymax = `Hi 95`), fill = "grey75") +
-  geom_line(data = as.data.frame(aa$erg$`7`), 
-            aes(x = as.numeric(rownames(as.data.frame(aa$erg$`7`))),
-                  y = `Point Forecast`), col = "blue") +
-  geom_ribbon(data = as.data.frame(aa$erg$`8`), 
-            aes(x = as.numeric(rownames(as.data.frame(aa$erg$`8`))), 
-                ymin = `Lo 95`, ymax = `Hi 95`), fill = "grey75") +
-  geom_line(data = as.data.frame(aa$erg$`8`), 
-            aes(x = as.numeric(rownames(as.data.frame(aa$erg$`8`))),
-                  y = `Point Forecast`), col = "blue") +
-  geom_ribbon(data = as.data.frame(aa$erg$`9`), 
-            aes(x = as.numeric(rownames(as.data.frame(aa$erg$`9`))), 
-                ymin = `Lo 95`, ymax = `Hi 95`), fill = "grey75") +
-  geom_line(data = as.data.frame(aa$erg$`9`), 
-            aes(x = as.numeric(rownames(as.data.frame(aa$erg$`9`))),
-                  y = `Point Forecast`), col = "blue") +
-  geom_ribbon(data = as.data.frame(aa$erg$`10`), 
-            aes(x = as.numeric(rownames(as.data.frame(aa$erg$`10`))), 
-                ymin = `Lo 95`, ymax = `Hi 95`), fill = "grey75") +
-  geom_line(data = as.data.frame(aa$erg$`10`), 
-            aes(x = as.numeric(rownames(as.data.frame(aa$erg$`10`))),
-                  y = `Point Forecast`), col = "blue") +
-  geom_line(data = p_hosp_inf, aes(x=1:nrow(p_hosp_inf), y = hosprate)) +
-  xlab("Zeit") +
-  ylab("Hospitalisierung") +
-  theme_minimal()
-```
 
 ## GAM
 ```{r}
 p_pop <- final_df %>%
   group_by(Meldedatum, Altersgruppe, Kalenderwoche, Kalenderjahr) %>%
   summarise(Hospitalisierung = sum(Hospitalisierung),
-            Neuerkrankung = sum(Neuerkrankung)) %>%
+            Neuerkrankung = sum(Neuerkrankung),
+            population = sum(population)) %>%
   group_by(Altersgruppe) %>%
   arrange(Meldedatum) %>%
   mutate(index = row_number(Altersgruppe))
 
 total_gam <- gam(Hospitalisierung ~ Neuerkrankung * Altersgruppe +
-                 s(Kalenderwoche, bs = "cc", k = 53) +
-                 s(index, bs = "ps", by = Altersgruppe, k = 50),
+                 s(Kalenderwoche, bs = "cc", k = 53, by = Altersgruppe) +
+                   s(Kalenderjahr, Altersgruppe, bs = "re"),
                data = p_pop,
+               method = "REML",
                family = poisson(link = "log"),
-               knots = list(Kalenderwoche = c(0.5, 53.5)))
+               knots = list(Kalenderwoche = c(1, 53)))
+
 summary(total_gam)
-gam.check(total_gam)
+gam.check(total_gam, rep = 500)
 plot(total_gam)
-auto.arima(residuals(nordr_wf_gam$gam))
+auto.arima(residuals(total_gam))
 
 ```
 
@@ -231,14 +57,14 @@ forecast_res <- data.frame(Meldedatum = character(12),
 for (i in seq(0, 1)) {
   train_df <- p_pop[1: ((98 + i)*6),]
   test_df <- p_pop[((98 + i) * 6 + 1):((100 + i)*6),]
-  gam_train <- gam(Hospitalisierung ~ Neuerkrankung * Altersgruppe +
-                 s(Kalenderwoche, bs = "cc", k = 53) +
-                 s(index, bs = "ps", by = Altersgruppe, k = 50),
+  gam_train <- gamm(Hospitalisierung ~ Neuerkrankung * Altersgruppe * Kalenderjahr +
+                 s(Kalenderwoche, bs = "cc", k = 53, by = Altersgruppe),
                data = train_df,
                family = poisson(link = "log"),
-               knots = list(Kalenderwoche = c(0.5, 53.5)))
+               knots = list(Kalenderwoche = c(0.5, 53.5)),
+               random = list(Altersgruppe = ~1|Altersgruppe))
   
-  forecast_l <- cbind(test_df, predict(gam_train, newdata = test_df, type = "response", se.fit = T))
+  forecast_l <- cbind(test_df, predict(gam_train$gam, newdata = test_df, type = "response", se.fit = T))
   diagnosis_df$mape[i+1] <- MAPE(forecast_l$Hospitalisierung, forecast_l$fit)
   diagnosis_df$iteration[i+1] <- i+1
   forecast <- forecast_l %>% group_by(Meldedatum) %>%

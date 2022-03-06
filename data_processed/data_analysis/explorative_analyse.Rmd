@@ -47,6 +47,7 @@ p_rate_100 <- final_df %>%
             Neuerkrankung = sum(Neuerkrankung)) %>%
   mutate(hosprate = Hospitalisierung/N * 100000)
 
+
 ggplot(p_rate_100) +
   geom_line(aes(x = as.Date(paste("1",Kalenderwoche, Kalenderjahr, sep = "-"), 
                             format = "%u-%W-%Y"), 
