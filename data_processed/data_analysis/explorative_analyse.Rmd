@@ -53,7 +53,7 @@ ggplot(p_rate_100) +
   geom_line(aes(x = as.Date(paste("1",Kalenderwoche, Kalenderjahr, sep = "-"), 
                             format = "%u-%W-%Y"), 
                 y = hosprate), size = 1.25) + 
-  theme_minimal() + xlab("Meldedatum") + ylab("Hospitalisierungsrate") +
+  theme_minimal() + xlab("Reported date") + ylab("Hospitalization rate") +
   theme(text = element_text(size = 25))
 
 dev.off()
@@ -69,7 +69,7 @@ png(filename="./Bilder/Hospitalisierungsrate_Absolut.png", width= 2000, height =
 
 ggplot(p_rate_abs) +
   geom_line(aes(y = Hospitalisierung, x = Meldedatum), size = 1.25) + 
-     xlab("Meldedatum") + ylab("Hospitalisierungen") + theme_minimal() +
+     xlab("Reported date") + ylab("Hospitalizations") + theme_minimal() +
   theme(text = element_text(size = 25))
 
 dev.off()
@@ -93,7 +93,7 @@ png(filename="./Bilder/Hospitalisierungsrate_Anteil.png", width= 2000, height = 
 
 ggplot(p_hosp_inf) +
   geom_line(aes(y = hosprate, x = Meldedatum), size = 1.25) +
-     xlab("Meldedatum") + ylab("Hospitalisierungsrate") + theme_minimal() +
+     xlab("Reported date") + ylab("Hospitalization rate") + theme_minimal() +
   theme(text = element_text(size = 25))
 
 dev.off()
@@ -177,7 +177,9 @@ png(filename="./Bilder/Hosprate_Bundesland2.png", width= 2000, height = 900)
 
 ggplot(p_bl_age) +
   geom_line(aes(x = Meldedatum, y = hosprate, col = Bundesland), size = 1.25) + theme_minimal() +
-  theme(text = element_text(size = 25))  + ylab("Hospitalisierungsrate") +
+  theme(text = element_text(size = 25))  +
+  xlab("Reported date") +
+  ylab("Hospitalization rate") +
   scale_color_brewer(palette = "Set1") #+
   # gghighlight(label_params = list(size = 8))
 
@@ -207,7 +209,7 @@ png(filename="./Bilder/Hosprate_Altersgruppen.png", width= 2000, height = 900)
 
 ggplot(p_age) +
   geom_line(aes(x = Meldedatum, y = hosprate, col = Altersgruppe), size = 1.25) +
-  xlab("Meldedatum") + ylab("Hospitalisierungsrate") + theme_minimal() +
+  xlab("Reported date") + ylab("Hospitalization rate") + theme_minimal() +
   theme(text = element_text(size = 25))  +
   scale_color_manual(values = AlterColors)
   
@@ -303,6 +305,7 @@ png(filename="./Bilder/Scatterplot_Hosp_Infektion.png", width= 2000, height = 90
 ggplot(p_scatter) +
   #geom_smooth(aes(x = Neuerkrankung, y = Hospitalisierung, col = Altersgruppe), method = "lm") +
   geom_point(aes(x = Neuerkrankung, y = Hospitalisierung)) + theme_minimal() +
+  xlab("New cases") + ylab("Hospitalizations") +
   theme(text = element_text(size = 25)) +
   ylim(c(0, 1200)) +
   xlim(c(0, 87500))
@@ -324,6 +327,7 @@ png(filename="./Bilder/Scatterplot_Altersgruppen2.png", width= 2000, height = 90
 ggplot(p_neuer) +
   geom_smooth(aes(x = Neuerkrankung, y = Hospitalisierung, col = Altersgruppe), method = "lm", size = 2) +
   geom_point(aes(x = Neuerkrankung, y = Hospitalisierung, col = Altersgruppe)) +
+  xlab("New cases") + ylab("Hospitalizations") +
   theme_minimal() + #+ facet_wrap(~Altersgruppe)
   theme(text = element_text(size = 25), legend.position = "none")  +
   scale_color_manual(values = AlterColors) +
@@ -358,6 +362,7 @@ ggplot(p_neuer_bl) +
   geom_point(aes(x = Neuerkrankung, y = Hospitalisierung, col = Altersgruppe))  +
   scale_color_manual(values = AlterColors) +
   facet_wrap(~Bundesland) +
+  xlab("New cases") + ylab("Hospitalizations") +
   theme_minimal() +
   theme(text = element_text(size = 20))
 
@@ -563,7 +568,8 @@ ggplot() +
             aes(x = Kalenderwoche, y = Hospitalisierung, col = "c"), size = 1.25) +
   scale_color_manual(name = "Legende", values = c("a" = "#1b9e77", "b" = "#d95f02", "c" = "#e7298a"),
                      labels = c("2020", "2021", "2022")) + theme_minimal() +
-  theme(text = element_text(size = 25))
+  theme(text = element_text(size = 25)) +
+  xlab("Calendar week") + ylab("Hospitalizations")
 
 dev.off()
 ```
