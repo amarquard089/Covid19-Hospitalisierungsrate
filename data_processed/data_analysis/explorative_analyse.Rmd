@@ -119,12 +119,107 @@ wurde, gemeldet wird.
 
 
 
+Betrachte nun die Hospitalisierung im detail:
+
+```{r}
+png(filename="./Bilder/Hospitalisierungsrate_1.png", width= 2000, height = 900)
+ggplot(final_df) +
+  geom_point(aes(y = Hospitalisierung, x = Meldedatum)) +
+  xlab("Reported Date") + ylab("Hospitalizations") + theme_minimal()
+dev.off()
+
+png(filename="./Bilder/Hospitalisierungsrate_2.png", width= 2000, height = 900)
+ggplot(final_df) +
+  geom_point(aes(y = Hospitalisierung/population * 100000, x = Meldedatum)) +
+  xlab("Reported Date") + ylab("Hospitalizationrate") + theme_minimal()
+dev.off()
+
+png(filename="./Bilder/Hospitalisierungsrate_3.png", width= 2000, height = 900)
+ggplot(final_df) +
+  geom_point(aes(y = Hospitalisierung/population * 100000, x = Meldedatum, col = Altersgruppe)) +
+  xlab("Reported Date") + ylab("Hospitalizationrate") + theme_minimal()
+dev.off()
+
+png(filename="./Bilder/Hospitalisierungsrate_4l.png", width= 2000, height = 900)
+ggplot(final_df) +
+  geom_point(aes(y = Hospitalisierung/population * 100000, x = Meldedatum, col = Altersgruppe)) +
+  xlab("Reported Date") + ylab("Hospitalizationrate") + 
+  facet_wrap(~Bundesland) + theme_minimal()
+dev.off()
+
+ggplot(final_df %>% filter(Bundesland == "Bayern")) +
+  geom_point(aes(x = Meldedatum, y = Hospitalisierung/population * 100000)) +
+  facet_wrap(~Altersgruppe, scales = "free") + 
+  ylab("Hospitalizationrate") + xlab("Reported date") + 
+  ggtitle("Hospitalizationrate in Bayern") + theme_minimal()
+```
+
+Explanation of the Hospitalization using GAM
+
+```{r}
+list_of_dfs <- split(final_df, as.factor(final_df$Bundesland))
+res <- list()
+for (i in names(list_of_dfs)) {
+  res[["model"]][[i]] <- gam(Hospitalisierung ~ Altersgruppe +
+                   s(index, bs = "ps", k = 100, by = Altersgruppe),
+                 data = list_of_dfs[[i]],
+                 method = "REML",
+                 family = poisson(),
+                 knots = list(Kalenderwoche = c(1, 53)))
+  res[["summary"]][[i]] <- summary(res[["model"]][[i]])
+  #gam.check(bay_gam)
+  res[["plot"]][[i]] <- plot(bay_gam)  
+}
+
+p_age_gam <- final_df %>%
+  group_by(Altersgruppe, Meldedatum) %>%
+  summarise(Hospitalisierung = sum(Hospitalisierung))
+
+gam_age <- gam(Hospitalisierung ~ Altersgruppe,
+               data = p_age_gam,
+               family = poisson())
+summary(gam_age)
+```
+
+```{r }
+
+p_acf <- final_df %>% group_by(Meldedatum) %>% filter(Bundesland == "Bayern") %>%
+  summarise(Hospitalisierung = sum(Hospitalisierung)) 
+
+m_h <- mean(p_acf$Hospitalisierung)
+s_h <- sd(p_acf$Hospitalisierung)
+
+p_acf <- p_acf %>%
+  #mutate(Hospitalisierung = (Hospitalisierung-m_h)/s_h) %>%
+  select(Hospitalisierung) %>%
+  ts(deltat = 1/53, start = c(2020, 1))
+
+acf(p_acf, lag.max = 53)
+pacf(p_acf, lag.max = 53)
 
 
+autoplot(p_acf) + xlab("Year") + ylab("Hospitalization normalized")
+p_ets_train <- window(p_acf, end = c(2022, 1))
+p_ets_test <- window(p_acf, start = c(2022, 2))
 
+ets_mod <- stlm(p_ets_train, method = "arima")
+autoplot(ets_mod$stl)
+summary(ets_mod$model)
+fc <- forecast(ets_mod, h = 1)
+accuracy(fc, p_ets_test)
+autoplot(forecast(ets_mod, h = 1)) + theme_minimal() + ggtitle(label = "Forecast for Bayern") +
+  ylab("Hospitalization")
 
+ets_mod2 <- stlm(p_acf, method = "arima")
+autoplot(ets_mod2$stl)
+summary(ets_mod2$model)
+fc <- forecast(ets_mod2, h = 2)
+accuracy(fc, p_ets_test)
+autoplot(forecast(ets_mod2, h = 2)) + theme_minimal() + ggtitle(label = "Forecast for Bayern") +
+  ylab("Hospitalization")
 
-
+plot(decompose(p_acf))
+```
 
 Bundesländer in Deutschland unterscheiden sich sehr bezüglich ihrer 
 sozioökonomischen Faktoren, wie z.B. der Altersstruktur, dem Reichtum,
@@ -168,7 +263,7 @@ Unterschied zwischen den Bundesländern
 ```{r hosprate bundesland}
 p_bl_age <- final_df %>%
   group_by(Bundesland, Meldedatum, Kalenderjahr, Kalenderwoche) %>%
-  filter(Bundesland %in% c("Bayern", "Sachsen", "Thueringen", "Saarland")) %>%
+  #filter(Bundesland %in% c("Bayern", "Sachsen", "Thueringen", "Saarland")) %>%
   summarise(Hospitalisierung = sum(Hospitalisierung),
             population = sum(population)) %>%
   mutate(hosprate = Hospitalisierung/population * 100000)
@@ -179,8 +274,8 @@ ggplot(p_bl_age) +
   geom_line(aes(x = Meldedatum, y = hosprate, col = Bundesland), size = 1.25) + theme_minimal() +
   theme(text = element_text(size = 25))  +
   xlab("Reported date") +
-  ylab("Hospitalization rate") +
-  scale_color_brewer(palette = "Set1") #+
+  ylab("Hospitalization rate") 
+  #scale_color_brewer(palette = "Set1") #+
   # gghighlight(label_params = list(size = 8))
 
 dev.off()

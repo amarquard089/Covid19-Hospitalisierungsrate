@@ -14,16 +14,38 @@ N <- sum(unique(final_df$population))
 ## Exponentielles Glätten
 
 ```{r}
-p_ets_neuer <- final_df %>%
-  group_by(Meldedatum) %>%
-  summarise(Neuerkrankung = sum(Neuerkrankung))
+p_ets_bay <- final_df %>% filter(Bundesland == "Bayern") %>%group_by(Meldedatum) %>%
+  summarise(Hospitalisierung = sum(Hospitalisierung)) 
 
-ab <- ets(as.ts(p_ets_neuer$Neuerkrankung), model = "ZZZ")
-auto.arima(as.ts(p_ets_neuer$Neuerkrankung))
-autoplot(forecast(ab, h = 2))
-```
+m_h <- mean(p_ets_bay$Hospitalisierung)
+s_h <- sd(p_ets_bay$Hospitalisierung)
 
-```{r}
+p_ets_bay <- p_ets_bay %>%
+  mutate(Hospitalisierung = (Hospitalisierung-m_h)/s_h) %>%
+  select(Hospitalisierung) %>%
+  ts(frequency = 53, start = c(2020,1))
+
+acf(p_ets_bay)
+pacf(p_ets_bay)
+
+autoplot(p_ets_bay)
+p_ets_train <- window(p_ets_bay, end = c(3,1))
+p_ets_test <- window(p_ets_bay, start = c(3,2))
+
+arma_mod <- arima(p_ets_bay, order = c(1,1,1))
+summary(arma_mod)
+checkresiduals(arma_mod)
+
+ets_mod <- stlm(p_ets_bay, method = "arima")
+autoplot(ets_mod$model)
+summary(ets_mod$model)
+fc <- forecast(ets_mod, h = 2)
+accuracy(fc, p_ets_test)
+autoplot(forecast(ets_mod, h = 52))
+
+
+
+
 
 erg_l <- list()
 for (j in unique(final_df$Bundesland)) {

@@ -51,16 +51,17 @@ list_of_dfs$Bayern <- list_of_dfs$Bayern %>%
 
 list_of_dfs$Bayern$Altersgruppe <- as.factor(list_of_dfs$Bayern$Altersgruppe)
 
-bay_gam <- gamm(Hospitalisierung ~ Neuerkrankung * Altersgruppe + 
-                 s(Kalenderwoche, bs = "cc", k = 53, by = Altersgruppe),
+list_of_dfs$Bayern$Altersgruppe <- relevel(list_of_dfs$Bayern$Altersgruppe, ref = "00-04")
+
+bay_gam <- gam(Hospitalisierung ~ Altersgruppe +
+                 s(index, bs = "ps", k = 100, by = Altersgruppe),
                data = list_of_dfs$Bayern,
                method = "REML",
-               family = poisson(link = "log"),
-               knots = list(Kalenderwoche = c(1, 53)),
-               correlation = corARMA(form = ~1|Neuerkrankung, p = 3, q = 2))
-summary(bay_gam$gam)
-gam.check(bay_gam$gam)
-plot(bay_gam$lme)
+               family = poisson(),
+               knots = list(Kalenderwoche = c(1, 53)))
+summary(bay_gam)
+gam.check(bay_gam)
+plot(bay_gam)
 
 for (x in unique(list_of_dfs$Bayern$Altersgruppe)) {
   pdata <- list_of_dfs$Bayern %>% filter(Altersgruppe == x)
