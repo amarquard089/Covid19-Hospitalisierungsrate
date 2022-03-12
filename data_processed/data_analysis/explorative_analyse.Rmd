@@ -17,6 +17,8 @@ library(interactions)
 
 ```{r prep}
 final_df <- readRDS("../final_df.RDS")
+final_comp <- final_df
+final_df <- final_df %>% filter(Meldedatum <= "2022-01-30")
 impfungen <- readRDS("../../data_truth/RKI/impfungen.Rds")
 
 N <- sum(unique(final_df$population))
@@ -136,11 +138,11 @@ dev.off()
 
 png(filename="./Bilder/Hospitalisierungsrate_3.png", width= 2000, height = 900)
 ggplot(final_df) +
-  geom_point(aes(y = Hospitalisierung/population * 100000, x = Meldedatum, col = Altersgruppe)) +
+  geom_point(aes(y = Hospitalisierung, x = Meldedatum, col = Altersgruppe)) +
   xlab("Reported Date") + ylab("Hospitalizationrate") + theme_minimal()
 dev.off()
 
-png(filename="./Bilder/Hospitalisierungsrate_4l.png", width= 2000, height = 900)
+png(filename="./Bilder/Hospitalisierungsrate_4.png", width= 2000, height = 900)
 ggplot(final_df) +
   geom_point(aes(y = Hospitalisierung/population * 100000, x = Meldedatum, col = Altersgruppe)) +
   xlab("Reported Date") + ylab("Hospitalizationrate") + 
@@ -170,18 +172,26 @@ for (i in names(list_of_dfs)) {
   #gam.check(bay_gam)
   res[["plot"]][[i]] <- plot(bay_gam)  
 }
+plot(res$model$Bayern)
+summary(res$model$Bayern)
 
-p_age_gam <- final_df %>%
-  group_by(Altersgruppe, Meldedatum) %>%
-  summarise(Hospitalisierung = sum(Hospitalisierung))
+E(Hosp) = exp(b0 + agegroup + f(index ,agegroup))
 
-gam_age <- gam(Hospitalisierung ~ Altersgruppe,
-               data = p_age_gam,
-               family = poisson())
-summary(gam_age)
+bay <- gam(Hospitalisierung ~
+                   s(index, bs = "ps", k = 100, by = Altersgruppe),
+                 data = list_of_dfs$Bayern,
+                 method = "REML",
+                 family = poisson(),
+                 knots = list(Kalenderwoche = c(1, 53)))
+plot(bay)
+summary(bay)
 ```
 
-```{r }
+```{r}
+p_comp <- final_comp %>% group_by(Meldedatum) %>% filter(Bundesland == "Bayern") %>% 
+  filter(Meldedatum <= "2022-02-13") %>%
+  summarise(Hospitalisierung = sum(Hospitalisierung)) %>% select(Hospitalisierung) %>%
+  ts(frequency = 53, start = c(2020, 1))
 
 p_acf <- final_df %>% group_by(Meldedatum) %>% filter(Bundesland == "Bayern") %>%
   summarise(Hospitalisierung = sum(Hospitalisierung)) 
@@ -192,34 +202,95 @@ s_h <- sd(p_acf$Hospitalisierung)
 p_acf <- p_acf %>%
   #mutate(Hospitalisierung = (Hospitalisierung-m_h)/s_h) %>%
   select(Hospitalisierung) %>%
-  ts(deltat = 1/53, start = c(2020, 1))
+  ts(frequency = 53, start = c(2020, 1))
 
+
+p_train <- window(p_acf, end = c(2022,1))
+p_test <- window(p_acf, start = c(2022,2))
+
+autoplot(p_acf) + theme_minimal() + ylab("Hospitalization")
+# no obvious non-stationarity
 acf(p_acf, lag.max = 53)
-pacf(p_acf, lag.max = 53)
+# strong korrelation up to lag 5
+pacf(p_acf)
+# using auto.arima for modelidentification
+a <- auto.arima(p_acf)
+# suggested model: ARIMA(1,0,2)(0,1,0)[53]
+plot(forecast(a, h = 2), main = "Forecast Bayern")
+lines(p_comp)
 
+trend <- arima(p_acf, order = c(1,0,2))
+plot(as.ts(fitted(trend)))
+detrend <- p_acf - fitted(trend)
+plot(as.ts(detrend))
+s <- t(matrix(data = detrend, nrow = 53))
+s_p <- colMeans(s, na.rm = T)
+plot(as.ts(s_p))
+resi <- p_acf - fitted(trend) - s_p
+plot(as.ts(resi))
 
-autoplot(p_acf) + xlab("Year") + ylab("Hospitalization normalized")
-p_ets_train <- window(p_acf, end = c(2022, 1))
-p_ets_test <- window(p_acf, start = c(2022, 2))
+s_p_strich <- diff(s_p, lag = 1)
+plot(as.ts(s_p_strich))
 
-ets_mod <- stlm(p_ets_train, method = "arima")
-autoplot(ets_mod$stl)
-summary(ets_mod$model)
-fc <- forecast(ets_mod, h = 1)
-accuracy(fc, p_ets_test)
-autoplot(forecast(ets_mod, h = 1)) + theme_minimal() + ggtitle(label = "Forecast for Bayern") +
-  ylab("Hospitalization")
+png(filename="./Bilder/decomp.png", width= 2000, height = 900)
+par(mfrow = c(4,1))
+plot(p_acf, ylab = "Hospitalisierung", cex = 2, cex.lab = 2, cex.axis=2, cex.main=2) #+ theme_minimal() + ylab("Hospitalization")
+plot(as.ts(fitted(trend)), ylab ="Fitted", main = "ARMA(1,2)", cex.lab = 2,cex = 2,cex.axis=2, cex.main=1.5)
+plot(as.ts(rep(s_p, 2)),ylab = "Season", cex = 2,cex.lab = 2,cex.axis=2, cex.main=2)
+plot(as.ts(resi),ylab = "Residuals", cex = 2,cex.lab = 2,cex.axis=2, cex.main=2)
+dev.off()
 
-ets_mod2 <- stlm(p_acf, method = "arima")
-autoplot(ets_mod2$stl)
-summary(ets_mod2$model)
-fc <- forecast(ets_mod2, h = 2)
-accuracy(fc, p_ets_test)
-autoplot(forecast(ets_mod2, h = 2)) + theme_minimal() + ggtitle(label = "Forecast for Bayern") +
-  ylab("Hospitalization")
+png(filename="./Bilder/fc_bay.png", width= 2000, height = 900)
+plot(forecast(a, h = 2), main = "Forecast Bayern using ARIMA(1,0,2)(0,1,0)[53]",
+     ylab = "Hospitalization", xlab = "Time")
+dev.off()
 
-plot(decompose(p_acf))
+## accuracy
+b <- arima(p_train, order = c(1,0,2), seasonal = list(order = c(0,1,0), period = 53))
+accuracy(forecast(b, h = 1), p_test)
 ```
+
+
+```{r}
+p_acf
+
+
+acf(p_acf)
+a <- arima(p_acf, order = c(1,0,2))
+par(mfrow = c(2,1))
+plot(p_acf)
+plot(as.ts(fitted(a)))
+plot(forecast(a))
+
+trend <- fitted(a)
+detrend_ts <- p_acf - trend
+plot(detrend_ts)
+s_ts <- t(matrix(data = detrend_ts, nrow = 53))
+s_part <-colMeans(s_ts, na.rm = T)
+plot(as.ts(rep(s_part, 2)))
+
+resi_ts <- p_acf - trend - s_part
+
+par(mfrow=c(4,1))
+plot(p_acf)
+plot(trend)
+plot(as.ts(s_part))
+plot(resi_ts)
+
+plot(as.ts(s_part))
+s_cor <- diff(s_part, lag = 1)
+s_cor_ts <- as.ts(s_cor)
+plot(s_cor_ts)
+acf(s_cor_ts)
+pacf(s_cor_ts)
+
+b <- arima(p_acf, order = c(1,0,2), seasonal = list(order = c(0,1,0), period = 53))
+plot(forecast(b))
+summary(b)
+
+d <- auto.arima(p_acf)
+```
+
 
 Bundesländer in Deutschland unterscheiden sich sehr bezüglich ihrer 
 sozioökonomischen Faktoren, wie z.B. der Altersstruktur, dem Reichtum,

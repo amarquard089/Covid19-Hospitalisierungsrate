@@ -62,6 +62,7 @@ bay_gam <- gam(Hospitalisierung ~ Altersgruppe +
 summary(bay_gam)
 gam.check(bay_gam)
 plot(bay_gam)
+vis.gam(bay_gam, type = "link", plot.type = "persp")
 
 for (x in unique(list_of_dfs$Bayern$Altersgruppe)) {
   pdata <- list_of_dfs$Bayern %>% filter(Altersgruppe == x)

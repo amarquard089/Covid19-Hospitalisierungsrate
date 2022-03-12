@@ -25,19 +25,16 @@ p_ets_bay <- p_ets_bay %>%
   select(Hospitalisierung) %>%
   ts(frequency = 53, start = c(2020,1))
 
-acf(p_ets_bay)
-pacf(p_ets_bay)
+acf(p_ets_bay, lag.max = 48)
+pacf(p_ets_bay, lag.max = 48)
 
 autoplot(p_ets_bay)
-p_ets_train <- window(p_ets_bay, end = c(3,1))
-p_ets_test <- window(p_ets_bay, start = c(3,2))
+p_ets_train <- window(p_ets_bay, end = c(2022,1))
+p_ets_test <- window(p_ets_bay, start = c(2022,2))
 
-arma_mod <- arima(p_ets_bay, order = c(1,1,1))
-summary(arma_mod)
-checkresiduals(arma_mod)
 
 ets_mod <- stlm(p_ets_bay, method = "arima")
-autoplot(ets_mod$model)
+autoplot(ets_mod$stl)
 summary(ets_mod$model)
 fc <- forecast(ets_mod, h = 2)
 accuracy(fc, p_ets_test)
@@ -173,6 +170,9 @@ ggplot() +
   xlab("Zeit") +
   ylab("Hospitalisierung") +
   theme_minimal()
+
+plot(decompose(p_ets_bay))
+plot(stlf(p_ets_bay, method = "arima", h = 2))
 
 ```
 
