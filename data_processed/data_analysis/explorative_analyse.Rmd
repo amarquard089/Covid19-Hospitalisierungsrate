@@ -216,8 +216,10 @@ pacf(p_acf)
 # using auto.arima for modelidentification
 a <- auto.arima(p_acf)
 # suggested model: ARIMA(1,0,2)(0,1,0)[53]
+png(filename="./Bilder/fc_by.png", width= 2000, height = 900)
 plot(forecast(a, h = 2), main = "Forecast Bayern")
 lines(p_comp)
+dev.off()
 
 trend <- arima(p_acf, order = c(1,0,2))
 plot(as.ts(fitted(trend)))
@@ -252,43 +254,41 @@ accuracy(forecast(b, h = 1), p_test)
 
 
 ```{r}
-p_acf
+p_comp <- final_comp %>% group_by(Meldedatum) %>% filter(Bundesland == "Niedersachsen") %>% 
+  filter(Meldedatum <= "2022-02-13") %>%
+  summarise(Hospitalisierung = sum(Hospitalisierung)) %>% select(Hospitalisierung) %>%
+  ts(frequency = 53, start = c(2020, 1))
+
+p_acf <- final_df %>% group_by(Meldedatum) %>% filter(Bundesland == "Niedersachsen") %>%
+  summarise(Hospitalisierung = sum(Hospitalisierung)) 
+
+m_h <- mean(p_acf$Hospitalisierung)
+s_h <- sd(p_acf$Hospitalisierung)
+
+p_acf <- p_acf %>%
+  #mutate(Hospitalisierung = (Hospitalisierung-m_h)/s_h) %>%
+  select(Hospitalisierung) %>%
+  ts(frequency = 53, start = c(2020, 1))
 
 
-acf(p_acf)
-a <- arima(p_acf, order = c(1,0,2))
-par(mfrow = c(2,1))
-plot(p_acf)
-plot(as.ts(fitted(a)))
-plot(forecast(a))
+p_train <- window(p_acf, end = c(2022,1))
+p_test <- window(p_acf, start = c(2022,2))
 
-trend <- fitted(a)
-detrend_ts <- p_acf - trend
-plot(detrend_ts)
-s_ts <- t(matrix(data = detrend_ts, nrow = 53))
-s_part <-colMeans(s_ts, na.rm = T)
-plot(as.ts(rep(s_part, 2)))
+autoplot(p_acf) + theme_minimal() + ylab("Hospitalization")
+# no obvious non-stationarity
+acf(p_acf, lag.max = 53)
+# strong korrelation up to lag 5
+pacf(p_acf)
+# using auto.arima for modelidentification
+a <- auto.arima(p_acf)
+# suggested model: ARIMA(0,1,0)(0,1,0)[53]
+png(filename="./Bilder/fc_ns.png", width= 2000, height = 900)
+plot(forecast(a, h = 2), main = "Forecast Niedersachsen using ARIMA(0,1,0)(0,1,0)[53]")
+lines(p_comp)
+dev.off()
 
-resi_ts <- p_acf - trend - s_part
-
-par(mfrow=c(4,1))
-plot(p_acf)
-plot(trend)
-plot(as.ts(s_part))
-plot(resi_ts)
-
-plot(as.ts(s_part))
-s_cor <- diff(s_part, lag = 1)
-s_cor_ts <- as.ts(s_cor)
-plot(s_cor_ts)
-acf(s_cor_ts)
-pacf(s_cor_ts)
-
-b <- arima(p_acf, order = c(1,0,2), seasonal = list(order = c(0,1,0), period = 53))
-plot(forecast(b))
-summary(b)
-
-d <- auto.arima(p_acf)
+b <- arima(p_train, order = c(0,1,0), seasonal = list(order = c(0,1,0), period = 53))
+accuracy(forecast(b, h = 2), p_test)
 ```
 
 
