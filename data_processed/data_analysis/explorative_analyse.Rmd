@@ -288,9 +288,6 @@ lines(p_comp)
 dev.off()
 
 b <- arima(p_train, order = c(0,1,0), seasonal = list(order = c(0,1,0), period = 53))
-b_s <- Arima(p_train, order = c(0,1,0), seasonal = list(order = c(0,1,0), period = 53))
-autoplot(b_s)
-checkresiduals(b_s)
 accuracy(forecast(b, h = 2), p_test)
 ```
 
