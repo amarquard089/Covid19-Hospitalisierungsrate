@@ -66,7 +66,7 @@ inzidenz_new <- dplyr::left_join(inzidenz_new, df_bundeslaender, by = 'Bundeslan
 inzidenz_clean <- 
   inzidenz_new %>%
   filter(!(Meldedatum == "2020-10-28" & Refdatum == "2020-01-19")) %>%
-  #filter(Meldedatum <= "2022-01-30") %>%
+  filter(Meldedatum <= "2022-03-20") %>%
   select(Bundesland, Altersgruppe, Geschlecht, Neuerkrankung = AnzahlFall, Meldedatum) %>% 
   mutate(Meldedatum = as.Date(Meldedatum)) %>%
   mutate(Altersgruppe = str_remove_all(Altersgruppe, "A")) %>% 
@@ -88,7 +88,7 @@ inzidenz_clean <-
   summarise(Neuerkrankung = sum(Neuerkrankung)) %>%
   ungroup()
 
-tail(inzidenz_clean, 1000)
+head(inzidenz_clean, 1000)
 ```
 
 Data "hospitalisierung" cleaning
@@ -125,7 +125,7 @@ colnames(hospitalisierung_clean)[6] <- "Meldedatum"
 
 inz_hosp_w_all_Age <- left_join(inzidenz_clean, hospitalisierung_clean)
 tail(inz_hosp_w_all_Age, 100)
-inz_hosp_w_all_Age <- inz_hosp_w_all_Age[-seq(from = nrow(inz_hosp_w_all_Age) - 95, to = nrow(inz_hosp_w_all_Age)),]
+# inz_hosp_w_all_Age <- inz_hosp_w_all_Age[-seq(from = nrow(inz_hosp_w_all_Age) - 95, to = nrow(inz_hosp_w_all_Age)),]
 # ergänze NA Meldewochen
 inz_hosp_w_all_Age[is.na(inz_hosp_w_all_Age$Meldedatum),] <- 
   inz_hosp_w_all_Age[is.na(inz_hosp_w_all_Age$Meldedatum),] %>%
@@ -137,8 +137,8 @@ inz_hosp_w_all_Age[is.na(inz_hosp_w_all_Age$Meldedatum),] <-
 ## Ergänze fehlende Wochen in jedem Bundesland und jeder Altersgruppe
 
 inz_hosp_w_all_Age <- inz_hosp_w_all_Age %>%
-  complete(nesting(Bundesland, Altersgruppe), Meldedatum = seq(min(Meldedatum), max(Meldedatum), by = "1 week"))
-
+  tidyr::complete(nesting(Bundesland, Altersgruppe), Meldedatum = seq(min(Meldedatum), max(Meldedatum), by = "1 week"))
+tail(inz_hosp_w_all_Age, 1000)
 ## interpolate NA with 0
 inz_hosp_w_all_Age <- inz_hosp_w_all_Age %>%
   arrange(Meldedatum) %>%

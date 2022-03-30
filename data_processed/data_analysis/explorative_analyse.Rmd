@@ -13,6 +13,7 @@ library(gridExtra)
 library(mgcv)
 library(forecast)
 library(interactions)
+library(readxl)
 ```
 
 ```{r prep}
@@ -120,6 +121,47 @@ da die Hospitalisierung u.U. nicht im Bundesland, in dem die Infektion gemeldet
 wurde, gemeldet wird.
 
 
+-------------------------------------------------------------------------------
+Varianten im Überblick
+```{r}
+
+VOC <- read_excel("../../data_truth/RKI/VOC_VOI_Tabelle.xlsx", 
+    sheet = "VOC")
+VOC
+names(VOC) <- c("Kalenderwoche", "Alpha_Anz", "Alpha_Ant", "Beta_Anz", "Beta_Ant",
+                "Delta_Anz", "Delta_Ant", "Gamma_Anz", "Gamma_Ant", "Omikron_Anz",
+                "Omikron_Ant", "Gesamt_Anz", "Gesamt_Ant")
+VOC <- VOC[-nrow(VOC),]
+VOC <- VOC %>%
+  separate(Kalenderwoche, c("KJ", "KW"), "-KW") %>%
+  select(-c(Gesamt_Anz, Gesamt_Ant)) %>%
+  select(KJ, KW, ends_with("Ant")) %>%
+  pivot_longer(cols = ends_with("Ant"),
+               names_to = "Variante",
+               values_to = "Anteil") %>%
+  mutate(Variante = ifelse(Variante == "Alpha_Ant", "Alpha", 
+                           ifelse(Variante =="Beta_Ant", "Beta", 
+                                  ifelse(Variante =="Delta_Ant", "Delta", 
+                                         ifelse(Variante =="Gamma_Ant", "Gamma", 
+                                                ifelse(Variante =="Omikron_Ant", "Omikron", "")))))) %>%
+  mutate(Anteil = Anteil/100) %>%
+  mutate(KWKJ = paste(KJ, KW, sep = "-"))
+VOC
+
+ggplot(VOC) +
+  geom_col(aes(x = KWKJ, y = Anteil, fill = as.factor(Variante))) +
+  xlab("Kalenderwoche") +
+  scale_x_discrete(breaks = c("2021-01", "2021-26", "2022-01")) + theme_minimal() +
+  labs(fill = "Variante")
+
+VOC <- VOC %>%
+  mutate(Kalenderjahr = as.factor(KJ),
+         Kalenderwoche = as.integer(KW)) %>%
+  pivot_wider(names_from = Variante, values_from = Anteil)
+```
+
+
+
 
 Betrachte nun die Hospitalisierung im detail:
 
@@ -156,6 +198,68 @@ ggplot(final_df %>% filter(Bundesland == "Bayern")) +
   ggtitle("Hospitalizationrate in Bayern") + theme_minimal()
 ```
 
+Die Hospitalisierung korreliert stark mit der Anzahl der Neuerkrankten.
+D.h. ist die Zahl der Neuerkrankten hoch, so ist auch die Anzahl der
+hospitalisierten Fälle hoch.
+
+```{r}
+plot(final_df$Hospitalisierung~final_df$Neuerkrankung, col = as.factor(final_df$Altersgruppe))
+
+sapply(unique(final_df$Altersgruppe), FUN = function(x) {
+  cor(final_df$Hospitalisierung[final_df$Altersgruppe == x], final_df$Neuerkrankung[final_df$Altersgruppe == x])
+})
+```
+
+Hospitalisierung ARIMA für einzelne Altersgruppen
+
+```{r}
+bay <- final_df %>%
+  filter(Bundesland == "Bayern") %>%
+  filter(Meldedatum >= "2021-01-01") %>%
+  filter(Meldedatum <= "2022-02-01") %>%
+  group_by(Meldedatum) %>%
+  summarise(Hospitalisierung = sum(Hospitalisierung),
+            population = sum(population),
+            Neuerkrankung = sum(Neuerkrankung))%>%
+  arrange(Meldedatum) %>% 
+  ungroup() %>%
+  mutate(rate = Hospitalisierung/population * 100000) %>%
+  select(rate) %>%
+  ts()
+
+bay_true <- final_comp %>%
+  filter(Bundesland == "Bayern") %>%
+  filter(Meldedatum > "2022-02-01") %>%
+  group_by(Meldedatum) %>%
+  summarise(Hospitalisierung = sum(Hospitalisierung),
+            population = sum(population),
+            Neuerkrankung = sum(Neuerkrankung))%>%
+  arrange(Meldedatum) %>% 
+  ungroup() %>%
+  mutate(rate = Hospitalisierung/population * 100000) %>%
+  select(Meldedatum, rate)
+
+
+autoplot(bay)
+lambda.bc <- BoxCox.lambda(bay)
+trans <- BoxCox(bay, lambda = lambda.bc)
+autoplot(trans)
+acf(trans, lag.max = 40)
+pacf(trans, lag.max = 40)
+tseries::adf.test(trans)
+d <- diff(trans, 1)
+autoplot(d)
+acf(trans, lag.max = 40)
+pacf(trans, lag.max = 40)
+
+aa <- Arima(bay, order = c(6,1,1), lambda = lambda.bc, biasadj = T)
+
+plot(forecast(aa, h = 4)$mean)
+
+cbind(bay_true, fit = forecast(aa, h = 4)$mean)
+```
+
+
 Explanation of the Hospitalization using GAM
 
 ```{r}
@@ -185,6 +289,49 @@ bay <- gam(Hospitalisierung ~
                  knots = list(Kalenderwoche = c(1, 53)))
 plot(bay)
 summary(bay)
+
+
+bay <- list_of_dfs$Bayern %>% filter(Meldedatum >= "2021-01-04") %>%
+  group_by(Kalenderjahr, Kalenderwoche, Meldedatum) %>%
+  summarise(Neuerkrankung = sum(Neuerkrankung),
+            Hospitalisierung = sum(Hospitalisierung))
+
+bay_var <- left_join(bay, VOC)
+bay_neu <- bay_var %>%
+  mutate(Neuerk_d = Delta * Neuerkrankung,
+         Neuerk_a = Alpha * Neuerkrankung,
+         Neuerk_b = Beta * Neuerkrankung,
+         Neuerk_g = Gamma * Neuerkrankung,
+         Neuerk_o = Omikron * Neuerkrankung) %>%
+  filter(!(is.na(KJ)))
+
+ggplot(bay_neu) +
+  geom_line(aes(x = Meldedatum, y = Neuerk_d, col = "a")) +
+  geom_line(aes(x = Meldedatum, y = Neuerk_a, col = "b")) +
+  geom_line(aes(x = Meldedatum, y = Neuerk_b, col = "c")) +
+  geom_line(aes(x = Meldedatum, y = Neuerk_g, col = "d")) +
+  geom_line(aes(x = Meldedatum, y = Neuerk_o, col = "e")) +
+  scale_y_log10() + theme_minimal() +
+  scale_colour_manual(name = 'legend', 
+         values =c('a'='black','b'='orange', "c" = "red", "d"="green", "e" = "yellow"), 
+         labels = c('Delta','Alpha', "Beta", "Gamma", "Omikron"))
+
+BMA::bicreg(x = bay_neu[,-5], y = bay_neu$Hospitalisierung)
+
+for (i in seq(0, 10)) {
+  train <- bay_neu[1:(49 + i),]
+  test <- bay_neu[(50+i):(51+i),]
+  lm_t <- glm(Hospitalisierung ~ Neuerk_a + Neuerk_b + Neuerk_g + Neuerk_d + Neuerk_o +
+                Delta + Gamma + Omikron,
+             data = train,
+             family = poisson())
+  plot(lm_t$model$Hospitalisierung, type = "l")
+  lines(fitted.values(lm_t), col = "red", type = "p")
+  lines(y = test$Hospitalisierung, x = c(50+i,51+i), col = "black")
+  lines(y = predict(lm_t, test, type = "response"), x = c(50+i,51+i), col = "green", type = "p")
+}
+
+
 ```
 
 ```{r}
