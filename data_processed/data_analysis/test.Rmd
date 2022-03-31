@@ -229,3 +229,91 @@ lines(x = c(59,60), y = test, type = "p", col = "red")
 legend(30,7, legend = c("Tatsächlich", "Geschätzt"), col = c("red", "blue"), lty = 1, cex = 0.8)
 checkresiduals(ar_best)
 ```
+
+```{r Thueringen}
+all <- final_df %>%
+  filter(Meldedatum >= "2021-01-01") #%>%
+  #filter(Meldedatum >= "2021-03-07")
+
+bay_a <- all %>%
+  filter(Bundesland == "Thueringen") %>%
+  mutate(Bundesland = as.factor(Bundesland)) %>%
+  group_by(Meldedatum) %>%
+  summarise(Hospitalisierung = sum(Hospitalisierung),
+            Neuerkrankung = sum(Neuerkrankung),
+            population = sum(population)) %>%
+  mutate(hosprate = Hospitalisierung/population * 100000,
+         neurate = Neuerkrankung/population * 100000) %>%
+  mutate(rate = Hospitalisierung/Neuerkrankung) %>%
+  mutate(index = row_number(Meldedatum)) %>%
+  select(Meldedatum, index, Hospitalisierung, Neuerkrankung, hosprate, neurate, rate)
+
+# Beschränken auf Zeitraum bis 20.02,
+# somit nutzen wir definitiv aktuelle Daten
+bay_a <- bay_a %>% filter(Meldedatum <= "2022-02-20")
+bay <- bay_a %>% select(hosprate) %>% ts()
+autoplot(bay)
+hist(bay, breaks = 20, main = "Histogramm von Berlin",
+     xlab = "Hospitalisierungsrate", ylab = "Häufigkeit")
+
+a <- opt_mod(bay)
+b <- opt_mod(bay, 16)
+c <- opt_mod(bay, 20)
+d <- opt_mod(bay, 24)
+e <- opt_mod(bay, 28)
+
+a$rmse
+b$rmse
+c$rmse
+d$rmse
+e$rmse
+
+a$best_mod
+b$best_mod
+c$best_mod
+d$best_mod
+e$best_mod
+
+
+train <- window(bay, start = 36, end = 59)
+test <- window(bay, start = 60, end = 60)
+ar_best <- Arima(train, order = c(2,0,2), include.mean = T)
+fc_a <- forecast(ar_best, h = 1)
+plot(fc_a$x, type = "l", xlim = c(30,62), ylim = c(0, 50),
+     main = "Punktschätzer für eine Woche", ylab = "Hospitalisierungsrate", xlab = "Zeit")
+lines(fc_a$mean, col = "blue", type = "p")
+lines(x = 60, y = test, type = "p", col = "red")
+legend(30,7, legend = c("Tatsächlich", "Geschätzt"), col = c("red", "blue"), lty = 1, cex = 0.8)
+checkresiduals(ar_best)
+
+two_weeka <- opt_mod(bay, h = 2)
+two_weekb <- opt_mod(bay, 16, h = 2)
+two_weekc <- opt_mod(bay, 20, h = 2)
+two_weekd <- opt_mod(bay, 24, h = 2)
+two_weeke <- opt_mod(bay, 28, h = 2)
+
+two_weeka$rmse
+two_weekb$rmse
+two_weekc$rmse
+two_weekd$rmse
+two_weeke$rmse
+
+two_weeka$best_mod
+two_weekb$best_mod
+two_weekc$best_mod
+two_weekd$best_mod
+two_weeke$best_mod
+
+
+train <- window(bay, start = 35, end = 58)
+test <- window(bay, start = 59, end = 60)
+ar_best <- Arima(train, order = c(0,1,0))
+fc_a <- forecast(ar_best, h = 2)
+accuracy(fc_a, test)
+plot(fc_a$fitted, type = "l", xlim = c(30,62), 
+     main = "Punktschätzer für zwei Wochen", ylab = "Hospitalisierungsrate", xlab = "Zeit")
+lines(fc_a$mean, col = "blue", type = "p")
+lines(x = c(59,60), y = test, type = "p", col = "red")
+legend(30,7, legend = c("Tatsächlich", "Geschätzt"), col = c("red", "blue"), lty = 1, cex = 0.8)
+checkresiduals(ar_best)
+```

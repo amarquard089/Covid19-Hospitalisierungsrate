@@ -19,8 +19,9 @@ library(readxl)
 ```{r prep}
 final_df <- readRDS("../final_df.RDS")
 final_comp <- final_df
-final_df <- final_df %>% filter(Meldedatum <= "2022-01-30")
+final_df <- final_df %>% filter(Meldedatum <= "2022-01-30") %>% filter(Meldedatum >= "2021-01-01")
 impfungen <- readRDS("../../data_truth/RKI/impfungen.Rds")
+bevoelkerung <- readRDS('../../data_truth/KIT/kit_bevoelkerung.Rds')
 
 N <- sum(unique(final_df$population))
 ```
@@ -56,52 +57,28 @@ ggplot(p_rate_100) +
   geom_line(aes(x = as.Date(paste("1",Kalenderwoche, Kalenderjahr, sep = "-"), 
                             format = "%u-%W-%Y"), 
                 y = hosprate), size = 1.25) + 
-  theme_minimal() + xlab("Reported date") + ylab("Hospitalization rate") +
+  theme_minimal() + xlab("Meldedatum") + ylab("Hospitalisierungsrate") +
   theme(text = element_text(size = 25))
 
 dev.off()
-```
-Zum anderen kann die Hospitalisierung als absolute Zahl ausgegeben werden
-```{r absolut}
-p_rate_abs <- final_df %>%
-  group_by(Meldedatum) %>%
-  summarise(Hospitalisierung = sum(Hospitalisierung),
-            Neuerkrankung = sum(Neuerkrankung))
 
-png(filename="./Bilder/Hospitalisierungsrate_Absolut.png", width= 2000, height = 300)
-
-ggplot(p_rate_abs) +
-  geom_line(aes(y = Hospitalisierung, x = Meldedatum), size = 1.25) + 
-     xlab("Reported date") + ylab("Hospitalizations") + theme_minimal() +
-  theme(text = element_text(size = 25))
-
-dev.off()
-```
-
-Es ergeben sich dabei ähnliche Zeitreihen.
-
-Da die Hospitalisierungen immer zum Zeitpunkt der Infektionsmeldung an die 
-Gesundheitsämter erfasst wird, i.a.W. also zum Meldedatum,
-kann ebenfalls betrachtet werden, wie hoch der Anteil der Hospitalisierten 
-Personen an der Gesamtzahl der Infektionen in dieser Woche ist.
-
-```{r hosp durch inf}
-p_hosp_inf <- final_df %>%
-  group_by(Meldedatum) %>%
-  summarise(Hospitalisierung = sum(Hospitalisierung),
+p_rate_inz <- final_df %>%
+  group_by(Kalenderjahr, Kalenderwoche) %>%
+  summarise(Hospitalisierung = sum(Hospitalisierung), 
             Neuerkrankung = sum(Neuerkrankung)) %>%
-  mutate(hosprate = Hospitalisierung / (Neuerkrankung + 1))
+  mutate(neurate = Neuerkrankung/N * 100000)
 
-png(filename="./Bilder/Hospitalisierungsrate_Anteil.png", width= 2000, height = 900)
+png(filename="./Bilder/inzidenz.png", width = 2000, height = 300)
 
-ggplot(p_hosp_inf) +
-  geom_line(aes(y = hosprate, x = Meldedatum), size = 1.25) +
-     xlab("Reported date") + ylab("Hospitalization rate") + theme_minimal() +
+ggplot(p_rate_inz) +
+  geom_line(aes(x = as.Date(paste("1",Kalenderwoche, Kalenderjahr, sep = "-"), 
+                            format = "%u-%W-%Y"), 
+                y = neurate), size = 1.25) + #scale_y_log10() +
+  theme_minimal() + xlab("Meldedatum") + ylab("Inzidenz") +
   theme(text = element_text(size = 25))
 
 dev.off()
 ```
-
 
 Bezüglich dem räumlichen Aspekt bei Meldungen und Hospitalisierungen gilt folgendes:
 Die Daten werden in der Regel von dem Gesundheitsamt an das RKI übermittelt, das für den Wohnort der betroffenen Person zuständig ist. In Einzelfällen können die Gesundheitsämter von dieser Regelung abweichen. Wenn die betroffene Person z.B. in Niedersachsen wohnhaft ist, aber in Hamburg hospitalisiert wird, dann erfolgt die Zuordnung zum Bundesland Niedersachsen. Das bedeutet, dass die Daten keinen direkten Rückschluss auf die Krankenhausbelegung der jeweiligen Bundesländer zulassen.
@@ -147,12 +124,14 @@ VOC <- VOC %>%
   mutate(Anteil = Anteil/100) %>%
   mutate(KWKJ = paste(KJ, KW, sep = "-"))
 VOC
-
+png(filename = "Bilder/varianten.png", width = 2000, height = 900)
 ggplot(VOC) +
   geom_col(aes(x = KWKJ, y = Anteil, fill = as.factor(Variante))) +
   xlab("Kalenderwoche") +
   scale_x_discrete(breaks = c("2021-01", "2021-26", "2022-01")) + theme_minimal() +
-  labs(fill = "Variante")
+  labs(fill = "Variante")  +
+  theme(text = element_text(size = 25))
+dev.off()
 
 VOC <- VOC %>%
   mutate(Kalenderjahr = as.factor(KJ),
@@ -160,6 +139,88 @@ VOC <- VOC %>%
   pivot_wider(names_from = Variante, values_from = Anteil)
 ```
 
+
+-------------------------------------------------------------------------------
+Impfung:
+```{r impf}
+df_bundeslaender2 <- data.frame('Bundeslandnummer' = c("01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12", "13", "14", "15", "16", "17"), 
+                                'Bundesland' = c("Schleswig-Holstein",
+                                                      "Hamburg",
+                                                      "Niedersachsen",
+                                                      "Bremen",
+                                                      "Nordrhein-Westfalen",
+                                                      "Hessen",
+                                                      "Rheinland-Pfalz",
+                                                      "Baden-Wuerttemberg",
+                                                      "Bayern",
+                                                      "Saarland",
+                                                      "Berlin",
+                                                      "Brandenburg",
+                                                      "Mecklenburg-Vorpommern",
+                                                      "Sachsen",
+                                                      "Sachsen-Anhalt",
+                                                      "Thueringen",
+                                                 "Bundesressorts")
+)
+impfung_new <-
+  impfung %>%
+  mutate(IdLandkreis = as.character(LandkreisId_Impfort)) %>%
+  mutate(Bundeslandnummer = gsub('.{3}$', '', LandkreisId_Impfort))
+
+impfung_new <- dplyr::left_join(impfung_new, df_bundeslaender2, by = 'Bundeslandnummer')
+
+
+bevoelkerung_c <- bevoelkerung %>% filter(age_group != "00+") %>% 
+  mutate(Altersgruppe = as.factor(age_group), Bundesland = location) %>%
+  mutate(Bundesland = str_replace_all(Bundesland, "ü", "ue")) %>% 
+  mutate(Bundesland = str_replace_all(Bundesland, "ä", "ae")) %>% 
+  mutate(Bundesland = str_replace_all(Bundesland, "ö", "oe")) %>% 
+  mutate(Bundesland = str_replace_all(Bundesland, "ß", "ss")) %>%
+  select(Bundesland, Altersgruppe, population) %>%
+  group_by(Bundesland) %>%
+  summarise(population = sum(population))
+
+bevoelkerung_c$Bundesland[bevoelkerung_c$Bundesland == "Sachen-Anhalt"] <- "Sachsen-Anhalt"
+
+impfung_n <- left_join(impfung_new, bevoelkerung_c, by = c("Bundesland"))
+impfung_n <- impfung_n %>% filter(!is.na(Bundesland)) %>% 
+  filter(Bundesland != "Bundesressorts")
+
+impf_bl <- impfung_n %>%
+  select(Impfdatum, Altersgruppe, Impfschutz, Anzahl, Bundesland, population) %>%
+  filter(Impfschutz != "1") %>%
+  group_by(Impfdatum, Impfschutz, Bundesland, population) %>%
+  summarise(Anzahl = sum(Anzahl)) %>%
+  filter(Impfdatum >= "2021-01-01") %>%
+  mutate(Impfschutz = as.factor(Impfschutz))
+
+impf_ges <- impf_bl %>% group_by(Impfdatum, Impfschutz) %>%
+  summarise(Anzahl = sum(Anzahl)) %>%
+  group_by(Impfschutz) %>%
+  mutate(rolls = cumsum(Anzahl)/N)
+
+png("Bilder/pmf_ges.png", width = 2000, height = 900)
+ggplot(impf_ges) +
+  geom_col(aes(x = Impfdatum, y = rolls, fill = Impfschutz)) +
+  ylab("Anteil geimpft an Bevölkerung") +
+  scale_x_discrete(breaks = c("2021-01-01", "2021-06-01", "2022-01-01")) +
+  facet_wrap(~Impfschutz) + theme_minimal()+
+  theme(text = element_text(size = 25))
+dev.off()
+
+impf_bl_a <- impf_bl %>%
+  group_by(Impfschutz, Bundesland) %>%
+  mutate(rolls = cumsum(Anzahl)/population)
+
+png("Bilder/impf_bl.png", height = 1500, width = 2000)
+ggplot(impf_bl_a) +
+  geom_col(aes(x = Impfdatum, y = rolls, fill = Bundesland)) +
+    ylab("Anteil geimpft an Bevölkerung") +
+  scale_x_discrete(breaks = c("2021-01-01", "2021-06-01", "2022-01-01")) +
+  facet_wrap(~Bundesland + Impfschutz, scales = "free") + theme_minimal()+
+  theme(text = element_text(size = 25))
+dev.off()
+```
 
 
 
