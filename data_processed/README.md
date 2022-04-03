@@ -81,7 +81,7 @@ Die Impfdaten enthalten die in der folgenden Tabelle abgebildeten Variablen und 
 
 Ist die Anzahl an Impfungen einer Impfgruppe an einem Tag kleiner als fünf, werden, aus Gründen des Datenschutzes, an diesem Tag keine Impfungen für die Impfgruppe ausgewiesen. Um dennoch einen genauen Überblick über die Gesamtzahl der Impfungen zu ermöglichen, werden Impfgruppen mit weniger als fünf Impfungen zu Impfungen der Folgetage derselben Impfgruppe hinzuaddiert, bis die kumulierte Anzahl der Impfungen an einem Tag den Wert von fünf übersteigt.  
 
-# Daten über Variants Of Concern (VOC.RDS)
+# Daten über besorgniserregende Varianten (VOC.RDS)
 
 ## Grundlegende Informationen zu den Daten
 Dieser Datensatz zeigt den Anteil in der Stichprobe (Sequenzdaten) detektierten und der über das Meldewesen (IfSG) übermittelten besorgniserregenden und unter Beobachtung stehenden Varianten (VOC). Um diesen Datensatz zu erstellen, werden VOC-Daten (aus Robert-Koch-Institut) verwendet. 
@@ -94,7 +94,7 @@ Die VOC-Daten differenzieren verschiedenen Merkmale. Grundlegend nach folgende M
 - Kalenderwoche (KW)
 - Kalenderjahr-Kalenderwoche (KWKJ)
 - Name von der Variante des Virus (Variante)
-- Anteil der Variants Of Concerns in der Stichprobe (Anteil)
+- Anteil der Variante des Virus in der Stichprobe (Anteil)
 
 ## Variablenausprägungen 
 
@@ -106,5 +106,5 @@ Die VOC-Daten enthalten die in der folgenden Tabelle abgebildeten Variablen und 
 | KW | Text | ```1``` <br/> ... <br/> ```52``` | Kalenderwoche |
 | KWKJ | Text |  ```JJJJ-WW``` | Kalenderjahr-Kalenderwoche: JJJJ bedeutet Kalenderjahr, WW bedeutet Kalenderwoche|
 | Variante | Text | ```Alpha``` <br/> ```Beta``` <br/> ```Delta``` <br/> ```Gamma``` <br/> ```Omikron``` | Name von der Variante des Virus |
-| Anteil | Rationale Zahl | ```≥0``` | Anteil der Variants Of Concerns in der Stichprobe |
+| Anteil | Rationale Zahl | ```≥0``` | Anteil der Variante des Virus in der Stichprobe |
 
