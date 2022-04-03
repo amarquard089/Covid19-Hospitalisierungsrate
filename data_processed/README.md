@@ -74,7 +74,7 @@ Die Impfdaten enthalten die in der folgenden Tabelle abgebildeten Variablen und 
 | Variable | Typ | Ausprägung | Beschreibung |
 | -------- | --- | ---------- | ------------ |
 |Impfdatum |Datum | ```JJJJ-MM-TT```| Datum der Impfungen
-| Bundesland | Text | ```Schleswig-Holstein``` <br/> ... <br/> ```Thüringen``` | Name des Bundeslandes |
+| Bundesland | Text | ```Schleswig-Holstein``` <br/> ... <br/> ```Thueringen``` | Name des Bundeslandes |
 |Impfschutz| Natürliche Zahl |  ```2```: Vollständiger Impfschutz <br/> ```3```: Aufgefrischter Impfschutz| Angabe zum Impfschutz<br/> Vollständiger Impfschutz besteht bei zweifacher Impfung, Impfung mit Janssen und einfach Geimpften mit überstandener SARS-CoV-2 Infektion|
 |population | Natürliche Zahl | ```≥0``` | Anzahl der Bevölkerung respektives Bundeslandes |
 |Anzahl | Natürliche Zahl | ```≥5``` | Anzahl der Impfungen in der Impfgruppe |
@@ -93,19 +93,18 @@ Die VOC-Daten differenzieren verschiedenen Merkmale. Grundlegend nach folgende M
 - Kalenderjahr (KJ)  
 - Kalenderwoche (KW)
 - Kalenderjahr-Kalenderwoche (KWKJ)
-- Variante der Virus (Variante)
-- Anteil der 
+- Name von der Variante des Virus (Variante)
+- Anteil der Variants Of Concerns in der Stichprobe (Anteil)
 
 ## Variablenausprägungen 
 
-Die Impfdaten enthalten die in der folgenden Tabelle abgebildeten Variablen und deren Ausprägungen:  
+Die VOC-Daten enthalten die in der folgenden Tabelle abgebildeten Variablen und deren Ausprägungen:  
 
 | Variable | Typ | Ausprägung | Beschreibung |
 | -------- | --- | ---------- | ------------ |
-|Impfdatum |Datum | ```JJJJ-MM-TT```| Datum der Impfungen
-| Bundesland | Text | ```Schleswig-Holstein``` <br/> ... <br/> ```Thüringen``` | Name des Bundeslandes |
-|Impfschutz| Natürliche Zahl |  ```2```: Vollständiger Impfschutz <br/> ```3```: Aufgefrischter Impfschutz| Angabe zum Impfschutz<br/> Vollständiger Impfschutz besteht bei zweifacher Impfung, Impfung mit Janssen und einfach Geimpften mit überstandener SARS-CoV-2 Infektion|
-|population | Natürliche Zahl | ```≥0``` | Anzahl der Bevölkerung respektives Bundeslandes |
-|Anzahl | Natürliche Zahl | ```≥5``` | Anzahl der Impfungen in der Impfgruppe |
+| KJ | Text |  ```2021``` <br/> ```2022``` | Kalenderjahr |
+| KW | Text | ```1``` <br/> ... <br/> ```52``` | Kalenderwoche |
+| KWKJ | Text |  ```JJJJ-WW``` | Kalenderjahr-Kalenderwoche: JJJJ bedeutet Kalenderjahr, WW bedeutet Kalenderwoche|
+| Variante | Text | ```Alpha``` <br/> ```Beta``` <br/> ```Delta``` <br/> ```Gamma``` <br/> ```Omikron``` | Name von der Variante des Virus |
+| Anteil | Rationale Zahl | ```≥0``` | Anteil der Variants Of Concerns in der Stichprobe |
 
-Ist die Anzahl an Impfungen einer Impfgruppe an einem Tag kleiner als fünf, werden, aus Gründen des Datenschutzes, an diesem Tag keine Impfungen für die Impfgruppe ausgewiesen. Um dennoch einen genauen Überblick über die Gesamtzahl der Impfungen zu ermöglichen, werden Impfgruppen mit weniger als fünf Impfungen zu Impfungen der Folgetage derselben Impfgruppe hinzuaddiert, bis die kumulierte Anzahl der Impfungen an einem Tag den Wert von fünf übersteigt.
