@@ -1,83 +1,38 @@
 # Covid19-Hospitalisierungsrate
 Statistisches Praktikum. Thema: Covid 19 - Vorhersage der Hospitalisierungsrate
 
-## Nützliche Links
+# Dokumentation
 
-- [Cheatsheets](https://rstudio.com/resources/cheatsheets/)
-- [Slideshow grammar_of_graphics](https://pkg.garrickadenbuie.com/gentle-ggplot2/#70)
-- [Colorbrewser](https://colorbrewer2.org/)
-  - [Doku zur Nutzung](https://rstudio-pubs-static.s3.amazonaws.com/177286_826aed2f00794640b301aeb42533c6f1.html)
-- [ggplot Colors and Fills](http://sape.inf.usi.ch/quick-reference/ggplot2/colour)
-- Und hoffentlich mehr :grimacing:
+## Ordner-Struktur
 
-## Wichtig: Lesen
-
-- [Covid19Trends-RKI](https://www.rki.de/DE/Content/InfAZ/N/Neuartiges_Coronavirus/Situationsberichte/COVID-19-Trends/COVID-19-Trends.html?__blob=publicationFile#/home)
-- [RKI-Github](https://github.com/orgs/robert-koch-institut/repositories)
-
-
-## How to
-
-Bitte nur data_processed für Auswertungen nutzen. Hier werden finale Datensätze 
-bereitsgestellt.
-Einlesen des finalen Datensatzes über `readRDS(...)` 
-
-Bitte ebenfalls sicherstellen, das im richtigen working directory gearbeitet
-wird.
-Hierzu die entsprechenden Readmes in den Ordnern lesen.
-
-
-## Ordnerhierarchie
-
-- ### Data_truth
+- data_processed
+  - beinhaltet sämtliche Transformationen an den wahren Datensätzen, in den
+  entsprechenden Datensätzen
+  - beinhaltet das Rmd um die entsprechenden Datensätze zu erhalten
+  - beinhaltet das Rmd zur modellierung
+  - beinhaltet ein Rmd zur explorativen datenanalyse
+  - Bilder, welche im abschließedenen Bericht verwendet wurden
+  - Readme mit Informationen zu den Datensätzen
   
-  - Beinhaltet unveränderte Daten und Parser um entsprechende Daten zu erhalten
+- data_truth
+  - beinhaltet R und Python-Skripte um Daten zu erhalten
+  - beinhaltet die wahren Datensätze in den entsprechenden Ordnern
+  - zusätzlich R-Skript für zusätzliche Daten
   
-- ### Data_processed
-  
-  - Beinhaltet Änderungen an den Daten (z.B. erstellen eines neues Datensatzes @Qian)
-  
-  - ### (Unterordner) models
-  
-  - Beinhaltet verschiedene Modelle basierend auf den processed Daten
-  
-- ### data_analysis
-  
-  - Beinhaltet ausschließlich analysen (deskriptiv)
-  
-  - ### (Unterordner) Bilder
-    
-    - Ort zum Abspeichern der Bilder aus Daten Analysen
-  
-- ### documentation
-  
-  - Beinhaltet Dokumentation
+- Praesentation
+  - beinhaltet die Präsentation zum Stand am Tage der Präsentation
 
-- ### Praesentation
 
-  - Powerpoint, PDF
-  
-- ### Abgabe
+## Anwendung
 
-  - Order für die Abgabe. Alle relevanten Dateien sollten hier rein
+In data_truth sind die entsprechenden R-Files um die wahren Datensätze zu 
+erhalten. Das Python-Skript muss nicht separat ausgeführt werden.
 
-## Grafiken
+In data_processed können die einzelnen RMD´s entsprechend ausgeführt werden
+um die Ergebnisse mit den Daten zum Abgabestand: 13.04.2022 zu reproduzieren.
 
-  - Grafiken werden separat gespeichert
+In modell.Rmd werden Filter entsprechend gesetzt, um neuer Ergebnisse zu erhalten
+müssen diese in den einzelnen Chunks angepasst werden.
 
-    Dafür kann in R folgender Befehl genutzt werden:
-
-    ```R
-    jpeg(file="saving_plot1.jpeg")
-    hist(HISTOGRAMM, col="darkgreen")
-    dev.off() 
-    ```
-
-    bzw.
-
-    ```R
-    png(file="path_for_saving_plot2.png",width=600, height=350)
-    hist(Temperature, col="gold")
-    dev.off()
-    ```
+Bilder im Ordner Bilder werden bei Ausführung der RMD´s aktualisiert.
     

@@ -1,7 +1,7 @@
 ---
 title: "datensatz"
 author: "Alexander Marquard, Qian Feng, Phu Nguyen"
-date: "4/2/2022"
+date: "13.04.2022"
 output: pdf_document
 ---
 
@@ -14,9 +14,17 @@ library(readr)
 library(tidyr)
 library(lubridate)
 library(tidyverse)
-library(mgcv)
 library(readxl)
-source("./functions/funktionen.R")
+```
+
+
+```{r vars}
+max_date <- "2022-03-20"
+# Sollte immer im 7-tagesschritt gewählt werden. Entsprechend nächstes 
+# max_date wäre 2022-03-27 usw.
+
+min_date <- "2021-01-01"
+# Von uns definiert. Wir betrachten lediglich Daten seit dem 1. Januar 2021
 ```
 
 orignal Datensatz
@@ -67,7 +75,7 @@ inzidenz_new <- dplyr::left_join(inzidenz_new, df_bundeslaender, by = 'Bundeslan
 inzidenz_clean <- 
   inzidenz_new %>%
   filter(!(Meldedatum == "2020-10-28" & Refdatum == "2020-01-19")) %>%
-  filter(Meldedatum <= "2022-03-20") %>%
+  filter(Meldedatum <= max_date) %>%
   select(Bundesland, Altersgruppe, Geschlecht, Neuerkrankung = AnzahlFall, Meldedatum) %>% 
   mutate(Meldedatum = as.Date(Meldedatum)) %>%
   mutate(Altersgruppe = str_remove_all(Altersgruppe, "A")) %>% 
@@ -188,7 +196,7 @@ inz_hosp_w_all_Age$Kalenderwoche <- as.numeric(inz_hosp_w_all_Age$Kalenderwoche)
 
 inz_hosp_w_all_Age <- left_join(inz_hosp_w_all_Age, bevoelkerung_clean, by = c("Bundesland", "Altersgruppe"))
 
-saveRDS(inz_hosp_w_all_Age, file = "./final_df_neu.RDS")
+saveRDS(inz_hosp_w_all_Age, file = "./final_df.RDS")
 ```
 
 # VOC.RDS
@@ -275,7 +283,7 @@ impf_bl <- impfung_n %>%
   filter(Impfschutz != "1") %>%
   group_by(Impfdatum, Impfschutz, Bundesland, population) %>%
   summarise(Anzahl = sum(Anzahl)) %>%
-  filter(Impfdatum >= "2021-01-01") %>%
+  filter(Impfdatum >= min_date) %>%
   mutate(Impfschutz = as.factor(Impfschutz))
 
 saveRDS(impf_bl, file = "./impfung.RDS")
