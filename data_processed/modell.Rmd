@@ -198,7 +198,7 @@ checkresiduals(ar_best)
 
 
 ##################
-# Forecast for 27.02 and 03.04
+# Forecast for 27.02.22 and 06.03.22
 #################
 
 (train <- window(bay, start = 49, end = 60))
