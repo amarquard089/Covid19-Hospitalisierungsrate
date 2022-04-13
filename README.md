@@ -1,5 +1,10 @@
 # Covid19-Hospitalisierungsrate
-Statistisches Praktikum. Thema: Covid 19 - Vorhersage der Hospitalisierungsrate
+Ludwig Maximilian Universität München </br>
+Institut für Statistik </br>
+*Covid 19 - Vorhersage der Hospitalisierungsrate* </br>
+Statistisches Praktikum </br>
+</br>
+Autoren: Alexander Marquard, Qian Feng, Phu Nguyen
 
 # Dokumentation
 

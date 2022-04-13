@@ -1,9 +1,7 @@
-## How to
+## Dokumentation
 
-- Truth data beinhaltet lediglich unveränderte Daten aus dem Internet
-  (mit kleinen Ausnahmen)
+Die einzelnen Ordner enthalten jeweils die wahren Daten, wie wir sie von den entsprechenden Organisationen erhalten haben.
 
-- Bitte dies auch so belassen, einheitliche RDS files gewährleisten,
-  dass wir alle mit dem gleichen Datenstand arbeiten
-  
-- Bei Fragen einfach mir schreiben
+coviddata.R enthält den Code um neue Datensätze zu erhalten.
+
+fetchdata.py kann ebenfalls genutzt werden, um Daten von der LMU zu erhalten.
