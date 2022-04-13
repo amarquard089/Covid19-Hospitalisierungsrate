@@ -32,7 +32,7 @@ final_df <- readRDS("./final_df.RDS")
 final_comp <- final_df
 final_df <- final_df %>% filter(Meldedatum <= max_date) %>% filter(Meldedatum >= min_date)
 
-impfung <- readRDS("./impfung.Rds")
+impfung <- readRDS("./impfung.RDS")s
 
 VOC <- readRDS("./VOC.RDS")
 
